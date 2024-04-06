@@ -1,0 +1,51 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+
+	  <Company>Armat</Company>
+	  <Product>Armat Utilities</Product>
+	  <Authors>Ara Petrosyan</Authors>
+
+	  <RootNamespace>Armat.Utils</RootNamespace>
+	  <AssemblyName>armat.utils</AssemblyName>
+
+	  <Version>1.0.0</Version>
+	  <AssemblyVersion>$(Version).0</AssemblyVersion>
+	  <FileVersion>$(Version).0</FileVersion>
+	  <!--<_NugetVersionPostfix>-beta</_NugetVersionPostfix>-->
+	  <_NugetVersionPostfix></_NugetVersionPostfix>
+
+	  <OutputType>Library</OutputType>
+	  <_DotNetVersion>net6.0</_DotNetVersion>
+	  <TargetFramework>$(_DotNetVersion)</TargetFramework>
+	  <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+
+	  <_BinDir>$(SolutionDir)\..\..\bin\$(Configuration)</_BinDir>
+	  <OutputPath>$(_BinDir)\</OutputPath>
+	  <IntermediateOutputPath>$(OutputPath)\obj\$(MSBuildProjectName)\</IntermediateOutputPath>
+
+	  <ImplicitUsings>disable</ImplicitUsings>
+	  <Nullable>enable</Nullable>
+	  <EnforceCodeStyleInBuild>True</EnforceCodeStyleInBuild>
+
+	  <GeneratePackageOnBuild>False</GeneratePackageOnBuild>
+	  <Title>Armat Utilities Library</Title>
+	  <Description>C# utility classes library. It contains classes to work with Counters, Collections, helper extension classes, etc.</Description>
+	  <PackageIcon>AppIcon.png</PackageIcon>
+	  <PackageTags>Utilities Collection List Map Hashtable Cache Queue Counter Lock</PackageTags>
+	  <PackageReadmeFile>Readme.md</PackageReadmeFile>
+
+	  <_ProjectWebpageUrl>http://armat.am/products/utilities</_ProjectWebpageUrl>
+	  <_ProjectLicenseType>MIT</_ProjectLicenseType>
+	  <_SourceCoreRepositoryRootUrl>https://github.com/ar-mat/Utilities</_SourceCoreRepositoryRootUrl>
+	  <_SourceCoreRepositoryType>git</_SourceCoreRepositoryType>
+
+	  <PackageVersion>$(Version)$(_NugetVersionPostfix)</PackageVersion>
+	  <PackageProjectUrl>$(_ProjectWebpageUrl)</PackageProjectUrl>
+	  <RepositoryUrl>$(_SourceCoreRepositoryRootUrl)/Projects/Utils</RepositoryUrl>
+	  <RepositoryType>$(_SourceCoreRepositoryType)</RepositoryType>
+	  <PackageLicenseExpression>$(_ProjectLicenseType)</PackageLicenseExpression>
+  
+  </PropertyGroup>
+
+</Project>
