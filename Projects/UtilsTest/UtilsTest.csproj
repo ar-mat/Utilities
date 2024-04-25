@@ -37,15 +37,16 @@
 		<PackageReference Include="xunit.runner.visualstudio" Version="2.4.5" />
 	</ItemGroup>
 
+	<ItemGroup>
+	  <ProjectReference Include="..\Utils\Utils.csproj" />
+	</ItemGroup>
+
 	<!-- Remove redundant translation directories from bin -->
 	<!-- See https://stackoverflow.com/questions/31289043/unwanted-culture-specific-dlls-copied-to-bin-directory/34362524#34362524 -->
 	<ItemGroup>
 		<FluentValidationExcludedCultures Include="cs;de;es;fr;it;ja;ko;pl;pt-BR;ru;ru;tr;zh-Hans;zh-Hant">
 			<InProject>false</InProject>
 		</FluentValidationExcludedCultures>
-	</ItemGroup>
-	<ItemGroup>
-	  <ProjectReference Include="..\Utils\Utils.csproj" />
 	</ItemGroup>
 	<Target Name="RemoveTranslationsAfterBuild" AfterTargets="AfterBuild">
 		<RemoveDir Directories="@(FluentValidationExcludedCultures->'$(OutputPath)%(Filename)')" />
