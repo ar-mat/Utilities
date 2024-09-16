@@ -10,28 +10,33 @@ namespace Armat.Serialization;
 // the interface is used in deseriaizer methods to find / load the appropriate data type
 public interface ITypeLocator
 {
+	Type? GetType(String className);
 	Type? GetType(String className, String assemblyName);
 }
 
-public class DefaultTypeLocator : ITypeLocator
+internal class DefaultTypeLocator : ITypeLocator
 {
 	public static ITypeLocator Instance { get; } = new DefaultTypeLocator();
 
-	public Type? GetType(String className, String assemblyName)
+	public virtual Type? GetType(String className)
 	{
-		// find an existing class
-		Type? classType = Type.GetType(className, false);
-		if (classType == null)
+		return Type.GetType(className, false);
+	}
+
+	public virtual Type? GetType(String className, String assemblyName)
+	{
+		Assembly? foundAssembly = null;
+
+		// find the right assembly
+		Assembly[] assemblies = AppDomain.CurrentDomain.GetAssemblies();
+		foundAssembly = assemblies.FirstOrDefault(asm =>
+			{
+				return asm.FullName == assemblyName || asm.GetName().Name == assemblyName;
+			});
+		if (foundAssembly == null)
 			return null;
 
-		// ensure it belongs to the right assembly
-		if (assemblyName.Length != 0)
-		{
-			Assembly classAsm = classType.Assembly;
-			if (classAsm.FullName != assemblyName && classAsm.GetName().Name != assemblyName)
-				return null;
-		}
-
-		return classType;
+		// find an existing class
+		return foundAssembly.GetType(className, false);
 	}
 }

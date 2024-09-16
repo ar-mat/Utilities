@@ -1,7 +1,9 @@
 ﻿
 using System;
+using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Xml;
 
 namespace Armat.Serialization;
 
@@ -14,8 +16,45 @@ public static class JsonSerializer
 	}
 	public static String ToString(Object? data, Type objectType, JsonWriterOptions options = default)
 	{
+		String result = String.Empty;
 		if (data == null)
-			return String.Empty;
+			return result;
+
+		// write into a memory stream
+		System.IO.MemoryStream stream = new();
+		Boolean succeeded = ToStream(stream, data, objectType, options);
+
+		// convert the result to string
+		if (succeeded)
+			result = System.Text.Encoding.UTF8.GetString(stream.GetBuffer(), 0, (Int32)stream.Position);
+
+		return result;
+	}
+	public static Boolean ToFile<T>(String filePath, T? data, JsonWriterOptions options = default)
+	{
+		// create / reset the file
+		FileStream stream = File.OpenWrite(filePath);
+
+		// write into the file
+		return ToStream(stream, data, options);
+	}
+	public static Boolean ToFile(String filePath, Object? data, Type objectType, JsonWriterOptions options = default)
+	{
+		// create / reset the file
+		FileStream stream = File.OpenWrite(filePath);
+
+		// write into the file
+		return ToStream(stream, data, objectType, options);
+	}
+	public static Boolean ToStream<T>(Stream stream, T? data, JsonWriterOptions options = default)
+	{
+		Type objectType = data == null ? typeof(T) : data.GetType();
+		return ToStream(stream, (Object?)data, objectType, options);
+	}
+	public static Boolean ToStream(Stream stream, Object? data, Type objectType, JsonWriterOptions options = default)
+	{
+		if (data == null)
+			return false;
 
 		// determine object assembly name and the type
 		String? assemblyName = objectType.Assembly.GetName().FullName;
@@ -27,7 +66,6 @@ public static class JsonSerializer
 		String jsonData = System.Text.Json.JsonSerializer.Serialize(data, objectType);
 
 		// create JSON writer stream
-		System.IO.MemoryStream stream = new();
 		using Utf8JsonWriter jsonWriter = new(stream, options);
 
 		// format JSON
@@ -42,8 +80,7 @@ public static class JsonSerializer
 		jsonWriter.WriteEndObject();
 		jsonWriter.Flush();
 
-		// convert the result to string
-		return System.Text.Encoding.UTF8.GetString(stream.GetBuffer(), 0, (Int32)stream.Position);
+		return true;
 	}
 
 	public static T? FromString<T>(String json, JsonDocumentOptions options = default)
@@ -62,11 +99,60 @@ public static class JsonSerializer
 	{
 		if (json.Length == 0)
 			return null;
-		if (typeLocator == null)
-			throw new ArgumentNullException(nameof(typeLocator));
 
 		using JsonDocument doc = JsonDocument.Parse(json, options);
 
+		return FromDocument(doc, typeLocator, options);
+	}
+	public static T? FromFile<T>(String filePath, JsonDocumentOptions options = default)
+	{
+		return FromFile<T>(filePath, DefaultTypeLocator.Instance, options);
+	}
+	public static T? FromFile<T>(String filePath, ITypeLocator typeLocator, JsonDocumentOptions options = default)
+	{
+		return (T?)FromFile(filePath, typeLocator, options);
+	}
+	public static Object? FromFile(String filePath, JsonDocumentOptions options = default)
+	{
+		return FromFile(filePath, DefaultTypeLocator.Instance, options);
+	}
+	public static Object? FromFile(String filePath, ITypeLocator typeLocator, JsonDocumentOptions options = default)
+	{
+		FileStream stream = File.OpenRead(filePath);
+		return FromStream(stream, typeLocator, options);
+	}
+	public static T? FromStream<T>(Stream stream, JsonDocumentOptions options = default)
+	{
+		return FromStream<T>(stream, DefaultTypeLocator.Instance, options);
+	}
+	public static T? FromStream<T>(Stream stream, ITypeLocator typeLocator, JsonDocumentOptions options = default)
+	{
+		return (T?)FromStream(stream, typeLocator, options);
+	}
+	public static Object? FromStream(Stream stream, JsonDocumentOptions options = default)
+	{
+		return FromStream(stream, DefaultTypeLocator.Instance, options);
+	}
+	public static Object? FromStream(Stream stream, ITypeLocator typeLocator, JsonDocumentOptions options = default)
+	{
+		using JsonDocument doc = JsonDocument.Parse(stream, options);
+
+		return FromDocument(doc, typeLocator, options);
+	}
+	public static T? FromDocument<T>(JsonDocument doc, JsonDocumentOptions options = default)
+	{
+		return FromDocument<T>(doc, DefaultTypeLocator.Instance, options);
+	}
+	public static T? FromDocument<T>(JsonDocument doc, ITypeLocator typeLocator, JsonDocumentOptions options = default)
+	{
+		return (T?)FromDocument(doc, typeLocator, options);
+	}
+	public static Object? FromDocument(JsonDocument doc, JsonDocumentOptions options = default)
+	{
+		return FromDocument(doc, DefaultTypeLocator.Instance, options);
+	}
+	public static Object? FromDocument(JsonDocument doc, ITypeLocator typeLocator, JsonDocumentOptions options = default)
+	{
 		String assemblyName = doc.RootElement.GetProperty("Assembly").ToString();
 		String typeName = doc.RootElement.GetProperty("TypeName").ToString();
 

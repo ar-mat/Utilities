@@ -41,6 +41,24 @@ namespace Armat.Serialization
 			xmlDoc.Save(filePath);
 			return true;
 		}
+		public static Boolean ToStream<T>(Stream stream, T? data, String xmlElementName = "", XmlWriterSettings? settings = null)
+		{
+			XmlDocument? xmlDoc = ToDocument<T>(data, xmlElementName, settings);
+			if (xmlDoc == null)
+				return false;
+
+			xmlDoc.Save(stream);
+			return true;
+		}
+		public static Boolean ToStream(Stream stream, Object? data, Type objectType, String xmlElementName = "", XmlWriterSettings? settings = null)
+		{
+			XmlDocument? xmlDoc = ToDocument(data, objectType, xmlElementName, settings);
+			if (xmlDoc == null)
+				return false;
+
+			xmlDoc.Save(stream);
+			return true;
+		}
 		public static XmlDocument? ToDocument<T>(T? data, String xmlElementName = "", XmlWriterSettings? settings = null)
 		{
 			XmlElement? xmlRoot = ToElement<T>(data, xmlElementName, settings);
