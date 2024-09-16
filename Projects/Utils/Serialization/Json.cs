@@ -101,8 +101,9 @@ public static class JsonSerializer
 			return null;
 
 		using JsonDocument doc = JsonDocument.Parse(json, options);
+		JsonSerializerOptions serializeOptions = Convert(options);
 
-		return FromDocument(doc, typeLocator, options);
+		return FromDocument(doc, typeLocator, serializeOptions);
 	}
 	public static T? FromFile<T>(String filePath, JsonDocumentOptions options = default)
 	{
@@ -136,30 +137,33 @@ public static class JsonSerializer
 	public static Object? FromStream(Stream stream, ITypeLocator typeLocator, JsonDocumentOptions options = default)
 	{
 		using JsonDocument doc = JsonDocument.Parse(stream, options);
+		JsonSerializerOptions serializeOptions = Convert(options);
 
-		return FromDocument(doc, typeLocator, options);
+		return FromDocument(doc, typeLocator, serializeOptions);
 	}
-	public static T? FromDocument<T>(JsonDocument doc, JsonDocumentOptions options = default)
+	public static T? FromDocument<T>(JsonDocument doc, JsonSerializerOptions? options = null)
 	{
 		return FromDocument<T>(doc, DefaultTypeLocator.Instance, options);
 	}
-	public static T? FromDocument<T>(JsonDocument doc, ITypeLocator typeLocator, JsonDocumentOptions options = default)
+	public static T? FromDocument<T>(JsonDocument doc, ITypeLocator typeLocator, JsonSerializerOptions? options = null)
 	{
 		return (T?)FromDocument(doc, typeLocator, options);
 	}
-	public static Object? FromDocument(JsonDocument doc, JsonDocumentOptions options = default)
+	public static Object? FromDocument(JsonDocument doc, JsonSerializerOptions? options = null)
 	{
 		return FromDocument(doc, DefaultTypeLocator.Instance, options);
 	}
-	public static Object? FromDocument(JsonDocument doc, ITypeLocator typeLocator, JsonDocumentOptions options = default)
+	public static Object? FromDocument(JsonDocument doc, ITypeLocator typeLocator, JsonSerializerOptions? options = null)
 	{
 		String assemblyName = doc.RootElement.GetProperty("Assembly").ToString();
 		String typeName = doc.RootElement.GetProperty("TypeName").ToString();
 
 		// locate the data type based on the assembly name and type name
+#pragma warning disable IDE0270 // Use coalesce expression
 		Type? objectType = typeLocator.GetType(typeName, assemblyName);
 		if (objectType == null)
 			throw new TypeLoadException();
+#pragma warning restore IDE0270 // Use coalesce expression
 
 		// extract JSON data
 		JsonElement jsonDataElement = doc.RootElement.GetProperty("JsonData");
@@ -168,8 +172,31 @@ public static class JsonSerializer
 			return null;
 
 		// deserialize object from JSON string
-		Object? obj = System.Text.Json.JsonSerializer.Deserialize(jsonData, objectType);
+		Object? result = System.Text.Json.JsonSerializer.Deserialize(jsonData, objectType, options);
 
-		return obj;
+		return result;
+	}
+
+	private static JsonSerializerOptions Convert(JsonDocumentOptions documentOptions)
+	{
+		JsonSerializerOptions serializerOptions = new ()
+		{
+			// Assuming similar behavior for AllowTrailingCommas
+			AllowTrailingCommas = documentOptions.AllowTrailingCommas,
+
+			// Assuming similar behavior for CommentHandling
+			ReadCommentHandling = documentOptions.CommentHandling switch
+			{
+				JsonCommentHandling.Disallow => JsonCommentHandling.Disallow,
+				JsonCommentHandling.Skip => JsonCommentHandling.Skip,
+				JsonCommentHandling.Allow => JsonCommentHandling.Allow,
+				_ => JsonCommentHandling.Disallow
+			},
+
+			// Assuming similar behavior for MaxDepth
+			MaxDepth = documentOptions.MaxDepth
+		};
+
+		return serializerOptions;
 	}
 }

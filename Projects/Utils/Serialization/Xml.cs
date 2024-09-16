@@ -223,9 +223,11 @@ namespace Armat.Serialization
 			String typeName = xmlRoot.GetAttribute("TypeName");
 
 			// locate the data type based on the assembly name and type name
+#pragma warning disable IDE0270 // Use coalesce expression
 			Type? objectType = typeLocator.GetType(typeName, assemblyName);
 			if (objectType == null)
 				throw new TypeLoadException();
+#pragma warning restore IDE0270 // Use coalesce expression
 
 			// extract XML data
 			String xmlData = xmlRoot.InnerXml;
