@@ -1,4 +1,4 @@
-# Armat Utilities
+﻿# Armat Utilities
 
 The document describes `Armat.Utils` .Net library usage. It represents a set of reusable utilities for .Net applications. It contains of the following classes:
 - Counters
@@ -11,6 +11,11 @@ The document describes `Armat.Utils` .Net library usage. It represents a set of 
 	- `Armat.Collections.ListDictionary` is an ordered dictionary implementing both - `IDictionary` and `IList` interfaces.
 	- `Armat.Collections.SegmentedStringDictionary` is an implementation of a dictionary with multiple segments of keys. Interface `ISegmentedStringDictionary` defines the interface to access dictionary elements by segment keys.
 	- `Armat.Collections.IndexedList` represents a list of elements which can be indexed by any field(s). It could be used as in-memory table of rows indexed by different columns. There are several indexing methods like hash-tables or binary trees.
+- Serialization
+	- `Armat.Serialization.IPackable` declares interfaces for packing and unpacking data types that require custom serialization code.
+	- `Armat.Serialization.ITypeLocator` declares interface for locating a data type based on it's assembly name and the type name to be used for deserialization.
+	- `Armat.Serialization.JsonSerializer` helper class for easy serialization of objects into and from Json format.
+	- `Armat.Serialization.XmlSerializer` helper class for easy serialization of objects into and from Xml format.
 - Extensions
 	- Extension of `Byte[]` to compare, copy and perform bitwise operations on byte arrays. See `Armat.Utils.Extensions.ByteArray` class for details.
 	- Extensions of `IDictionary<Key,Value>`, `IReadOnlyDictionary<Key,Value>`, `IReadOnlyCollection<T>` and `IEnumerable<T>` to compare contents of collections. See `Armat.Utils.Extensions.ContentComparer` class for details.
