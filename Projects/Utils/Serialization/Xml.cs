@@ -149,7 +149,6 @@ namespace Armat.Serialization
 
 			return FromDocument(xmlDoc, typeLocator, xmlElementName, settings);
 		}
-
 		public static T? FromFile<T>(String filePath, String xmlElementName = "", XmlReaderSettings? settings = null)
 		{
 			return FromFile<T>(filePath, DefaultTypeLocator.Instance, xmlElementName, settings);
@@ -172,7 +171,25 @@ namespace Armat.Serialization
 
 			return FromDocument(xmlDoc, typeLocator, xmlElementName, settings);
 		}
+		public static T? FromStream<T>(Stream stream, String xmlElementName = "", XmlReaderSettings? settings = null)
+		{
+			return FromStream<T>(stream, DefaultTypeLocator.Instance, xmlElementName, settings);
+		}
+		public static T? FromStream<T>(Stream stream, ITypeLocator typeLocator, String xmlElementName = "", XmlReaderSettings? settings = null)
+		{
+			return (T?)FromStream(stream, typeLocator, xmlElementName, settings);
+		}
+		public static Object? FromStream(Stream stream, String xmlElementName = "", XmlReaderSettings? settings = null)
+		{
+			return FromStream(stream, DefaultTypeLocator.Instance, xmlElementName, settings);
+		}
+		public static Object? FromStream(Stream stream, ITypeLocator typeLocator, String xmlElementName = "", XmlReaderSettings? settings = null)
+		{
+			XmlDocument xmlDoc = new();
+			xmlDoc.Load(stream);
 
+			return FromDocument(xmlDoc, typeLocator, xmlElementName, settings);
+		}
 		public static T? FromDocument<T>(XmlDocument? xmlDoc, String xmlElementName = "", XmlReaderSettings? settings = null)
 		{
 			return FromDocument<T?>(xmlDoc, DefaultTypeLocator.Instance, xmlElementName, settings);
@@ -194,7 +211,6 @@ namespace Armat.Serialization
 
 			return FromElement(xmlRoot, typeLocator, xmlElementName, settings);
 		}
-
 		public static T? FromElement<T>(XmlElement? xmlRoot, String xmlElementName = "", XmlReaderSettings? settings = null)
 		{
 			return FromElement<T>(xmlRoot, DefaultTypeLocator.Instance, xmlElementName, settings);
