@@ -5,7 +5,12 @@ VisualStudioVersion = 17.9.34622.214
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Utils", "..\..\Projects\Utils\Utils.csproj", "{20DC1368-BCB5-4E85-B9DE-4D6076137A1B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UtilsTest", "..\..\Projects\UtilsTest\UtilsTest.csproj", "{6B6240E3-493A-4126-A92F-DE95B3A0D517}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilsTest", "..\..\Projects\UtilsTest\UtilsTest.csproj", "{6B6240E3-493A-4126-A92F-DE95B3A0D517}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "BuildScripts", "BuildScripts", "{105A156A-7FA0-452F-8935-00688F901918}"
+	ProjectSection(SolutionItems) = preProject
+		..\..\BuildScripts\Publish.ps1 = ..\..\BuildScripts\Publish.ps1
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
