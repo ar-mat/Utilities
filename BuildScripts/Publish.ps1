@@ -8,10 +8,14 @@ $OriginalDir=Get-Location | select -ExpandProperty Path
 cd ../Projects/Utils
 
 # Tagret path of published artifacts
-$TargetPath = "../../bin/$Configuration/publish/Utils"
+$BuildPath = "../../bin/$Configuration"
+$TargetPath = "$BuildPath/publish/Utils"
+
+#Build the project
+dotnet build Utils.csproj -c $Configuration -o $BuildPath
 
 # Publish artifacts
-dotnet publish -c $Configuration -o $TargetPath
+dotnet publish Utils.csproj -c $Configuration --no-build -o $TargetPath /p:OutputPath=$BuildPath
 
 # Zip the contents
 Compress-Archive -Path $TargetPath -DestinationPath $TargetPath\Armat.Utils-1.0.1.zip -Force
