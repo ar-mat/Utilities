@@ -9,6 +9,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilsTest", "..\..\Projects
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "BuildScripts", "BuildScripts", "{105A156A-7FA0-452F-8935-00688F901918}"
 	ProjectSection(SolutionItems) = preProject
+		..\..\BuildScripts\GetAssemblyVersion.ps1 = ..\..\BuildScripts\GetAssemblyVersion.ps1
 		..\..\BuildScripts\Pack.ps1 = ..\..\BuildScripts\Pack.ps1
 		..\..\BuildScripts\Publish.ps1 = ..\..\BuildScripts\Publish.ps1
 	EndProjectSection

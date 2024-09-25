@@ -1,20 +1,24 @@
 ﻿# Run in release mode
 param($Configuration = "Release")
 
+# Name of the project to build
+$ProjectName = "Utils"
+
 # Get the original directoty, it will get back there after it's done
 $OriginalDir=Get-Location | select -ExpandProperty Path
 
 # Go to the project directory
-cd ../Projects/Utils
+cd ../Projects/$ProjectName
 
 # Tagret path of published artifacts
 $BuildPath = "../../bin/$Configuration"
+$TargetPath = "$BuildPath/pack/$ProjectName"
 
 #Build the project
-dotnet build Utils.csproj -c $Configuration -o $BuildPath
+dotnet build $ProjectName.csproj -c $Configuration -o $BuildPath
 
 # Pack nuget artifacts
-dotnet pack Utils.csproj -c $Configuration --no-build -o $BuildPath /p:OutputPath=$BuildPath
+dotnet pack $ProjectName.csproj -c $Configuration --no-build -o $TargetPath /p:OutputPath=$BuildPath
 
 # Go back to the original directory
 cd $OriginalDir
