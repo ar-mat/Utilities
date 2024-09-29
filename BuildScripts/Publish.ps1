@@ -24,7 +24,7 @@ $Version = & "$OriginalDir/GetAssemblyVersion.ps1" -AssemblyPath $BuildPath/arma
 dotnet publish $ProjectName.csproj -c $Configuration --no-build -o $TargetPath /p:OutputPath=$BuildPath
 
 # Zip the contents
-Compress-Archive -Path $TargetPath -DestinationPath $TargetPath\Armat.$ProjectName-$Version.zip -Force
+Compress-Archive -Path $TargetPath -DestinationPath $TargetPath/Armat.$ProjectName-$Version.zip -Force
 
 # Go back to the original directory
 cd $OriginalDir
