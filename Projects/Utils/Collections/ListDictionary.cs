@@ -315,13 +315,9 @@ public class ListDictionary<TKey, TValue> : IList<TValue>, IReadOnlyList<TValue>
 			Owner._changeEmitter?.OnCommitInsertValue(index, value, state);
 
 			try { Owner.Inserted?.Invoke(Owner, index, value); }
-#pragma warning disable CA1031 // Do not catch general exception types
 			catch { }
-#pragma warning restore CA1031 // Do not catch general exception types
 			try { Owner.CollectionChanged?.Invoke(Owner, new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Add, value, index)); }
-#pragma warning disable CA1031 // Do not catch general exception types
 			catch { }
-#pragma warning restore CA1031 // Do not catch general exception types
 		}
 
 		public void OnRollbackInsertValue(Int32 index, TValue value, Object? state)
@@ -341,13 +337,9 @@ public class ListDictionary<TKey, TValue> : IList<TValue>, IReadOnlyList<TValue>
 			Owner._changeEmitter?.OnCommitRemoveValue(index, prevValue, state);
 
 			try { Owner.Removed?.Invoke(Owner, index, prevValue); }
-#pragma warning disable CA1031 // Do not catch general exception types
 			catch { }
-#pragma warning restore CA1031 // Do not catch general exception types
 			try { Owner.CollectionChanged?.Invoke(Owner, new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Remove, prevValue, index)); }
-#pragma warning disable CA1031 // Do not catch general exception types
 			catch { }
-#pragma warning restore CA1031 // Do not catch general exception types
 		}
 
 		public void OnRollbackRemoveValue(Int32 index, TValue prevValue, Object? state)
@@ -367,13 +359,9 @@ public class ListDictionary<TKey, TValue> : IList<TValue>, IReadOnlyList<TValue>
 			Owner._changeEmitter?.OnCommitSetValue(index, value, prevValue, state);
 
 			try { Owner.Updated?.Invoke(Owner, index, value, prevValue); }
-#pragma warning disable CA1031 // Do not catch general exception types
 			catch { }
-#pragma warning restore CA1031 // Do not catch general exception types
 			try { Owner.CollectionChanged?.Invoke(Owner, new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Replace, value, prevValue, index)); }
-#pragma warning disable CA1031 // Do not catch general exception types
 			catch { }
-#pragma warning restore CA1031 // Do not catch general exception types
 		}
 
 		public void OnRollbackSetValue(Int32 index, TValue value, TValue prevValue, Object? state)
@@ -393,13 +381,9 @@ public class ListDictionary<TKey, TValue> : IList<TValue>, IReadOnlyList<TValue>
 			Owner._changeEmitter?.OnCommitMoveValue(indexNew, indexPrev, value, state);
 
 			try { Owner.Moved?.Invoke(Owner, indexNew, indexPrev, value); }
-#pragma warning disable CA1031 // Do not catch general exception types
 			catch { }
-#pragma warning restore CA1031 // Do not catch general exception types
 			try { Owner.CollectionChanged?.Invoke(Owner, new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Move, value, indexNew, indexPrev)); }
-#pragma warning disable CA1031 // Do not catch general exception types
 			catch { }
-#pragma warning restore CA1031 // Do not catch general exception types
 		}
 
 		public void OnRollbackMoveValue(Int32 indexNew, Int32 indexPrev, TValue value, Object? state)
@@ -419,13 +403,9 @@ public class ListDictionary<TKey, TValue> : IList<TValue>, IReadOnlyList<TValue>
 			Owner._changeEmitter?.OnCommitClear(count, state);
 
 			try { Owner.Cleared?.Invoke(Owner); }
-#pragma warning disable CA1031 // Do not catch general exception types
 			catch { }
-#pragma warning restore CA1031 // Do not catch general exception types
 			try { Owner.CollectionChanged?.Invoke(Owner, new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset)); }
-#pragma warning disable CA1031 // Do not catch general exception types
 			catch { }
-#pragma warning restore CA1031 // Do not catch general exception types
 		}
 
 		public void OnRollbackClear(Int32 count, Object? state)
@@ -448,8 +428,10 @@ public class ListDictionary<TKey, TValue> : IList<TValue>, IReadOnlyList<TValue>
 
 	public void RegisterChangeHandler(IListChangeHandler<TValue> handler)
 	{
+#pragma warning disable IDE0074 // Use compound assignment
 		if (_changeEmitter == null)
 			_changeEmitter = new StandardListChangeEmitter<TValue>();
+#pragma warning restore IDE0074 // Use compound assignment
 
 		_changeEmitter.RegisterChangeHandler(handler);
 	}
