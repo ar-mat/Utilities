@@ -48,7 +48,7 @@ public class XmlFileElementReference
 	public XmlElement? LoadXmlElement()
 	{
 		// check if the file exists
-        if (System.IO.File.Exists(FilePath))
+        if (!System.IO.File.Exists(FilePath))
 			return null;
 
         // load the document
