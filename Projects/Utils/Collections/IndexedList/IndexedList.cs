@@ -25,7 +25,7 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 	private List<Int32>? _zombies;
 
 	private Dictionary<String, IIndexBase<T>>? _mapIndexesByName;
-	private IndexedListData _dataAccessorForIndex;
+	private readonly IndexedListData _dataAccessorForIndex;
 
 	private IndexedListChangeEmitter? _listChangeEmitter;
 
@@ -171,7 +171,7 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 		}
 
 		// synchronized
-		IsSynchronized = synchronized.HasValue ? synchronized.Value : other.IsSynchronized;
+		IsSynchronized = synchronized ?? other.IsSynchronized;
 		ValueComparer = valueComparer ?? EqualityComparer<T>.Default;
 	}
 
@@ -464,10 +464,10 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 				ReaderWriterLockSlim? rwLock = Interlocked.Exchange(ref _rwLock, null);
 				rwLock?.Dispose();
 			}
-			else if (_rwLock == null)
+			else
 			{
 				// create read / write lock
-				_rwLock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
+				_rwLock ??= new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
 			}
 		}
 	}
@@ -1043,7 +1043,7 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 
 	private class IndexedListEnumerator : IEnumerator<T>
 	{
-		private IndexedList<T> _data;
+		private readonly IndexedList<T> _data;
 		private Int32 _index = -1;
 
 		public IndexedListEnumerator(IndexedList<T> data)
@@ -1807,9 +1807,8 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 			throw new ArgumentException($"Type {indexClassType} must implement \"IIndex<TIndexType, T>\" interface", nameof(indexClassType));
 
 		// create the index instance
-		Object? objInstance = indexClassType.Assembly.CreateInstance(indexClassType.FullName);
-		if (objInstance == null)
-			throw new ArgumentException($"Creation of an index of type {indexClassType} failed");
+		Object objInstance = indexClassType.Assembly.CreateInstance(indexClassType.FullName)
+			?? throw new ArgumentException($"Creation of an index of type {indexClassType} failed");
 
 		IIndex<TIndexType, T> index = (IIndex<TIndexType, T>)objInstance;
 		CreateIndex<TIndexType>(index, id, indexReader);
@@ -1820,9 +1819,8 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 	public void CreateIndex<TIndexType>(IIndex<TIndexType, T> index, String id, IIndexReader<TIndexType, T> indexReader)
 		where TIndexType : notnull
 	{
-		IIndexInitializer<TIndexType, T>? initializer = index as IIndexInitializer<TIndexType, T>;
-		if (initializer == null)
-			throw new NotImplementedException("interface \"IIndexInitializer\" is not implemented for the index");
+		IIndexInitializer<TIndexType, T> initializer = index as IIndexInitializer<TIndexType, T>
+			?? throw new NotImplementedException("interface \"IIndexInitializer\" is not implemented for the index");
 
 		// create the index instance
 		IndexedListData dataWrapper = _dataAccessorForIndex;
@@ -1848,8 +1846,7 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 			throw new ArgumentException("Index is already registered");
 		}
 
-		IListChangeHandler<T>? changeHandler = index as IListChangeHandler<T>;
-		if (changeHandler != null)
+		if (index is IListChangeHandler<T> changeHandler)
 		{
 			// initialize the index by filling in all current list items
 			if (_mask == null)
@@ -1894,10 +1891,11 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 		if (_mapIndexesByName == null)
 			return false;
 
-		IIndexBase<T>? index = null;
-
+#pragma warning disable IDE0018 // Inline variable declaration
+		IIndexBase<T>? index;
 		if (!_mapIndexesByName.Remove(id, out index) || index == null)
 			return false;
+#pragma warning restore IDE0018 // Inline variable declaration
 
 		if (index is IListChangeHandler<T> changeHandler)
 		{
@@ -1948,9 +1946,8 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 			throw new KeyNotFoundException();
 
 		// get the index
-		IIndexBase<T>? index = _mapIndexesByName.GetValueOrDefault(id);
-		if (index == null)
-			throw new KeyNotFoundException();
+		IIndexBase<T> index = _mapIndexesByName.GetValueOrDefault(id)
+			?? throw new KeyNotFoundException();
 
 		// reindex
 		index.ReIndex();
@@ -2060,6 +2057,8 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 	#endregion // Index Data List Class
 
 	#region List modification handlers
+
+#pragma warning disable IDE0220 // Add explicit cast
 
 	private Object? BeginInsertValue(Int32 indexInt, Int32 indexExt, T value)
 	{
@@ -2255,6 +2254,7 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 		try { _listChangeEmitter?.OnRollbackClear(count, state); }
 		catch { }
 	}
+#pragma warning restore IDE0220 // Add explicit cast
 
 	#endregion // List modification handlers
 }

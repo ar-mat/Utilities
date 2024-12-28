@@ -133,7 +133,16 @@ public abstract class MultiIndexBase<TIndexType, T> : IndexBase<TIndexType, T>, 
 			_valueComparer = valueComparer;
 		}
 
-		public Int32 Count => _data.ExternalCount;
+		public Int32 Count
+		{
+			get
+			{
+				// in case of empty _indexMap (not initialized yet) the count must be 0
+				// otherwise the _data.ExternalCount must be equal to the sum of _indexMap value counts
+				// it returns _data.ExternalCount due to performace considerations
+				return _indexMap.Count == 0 ? 0 : _data.ExternalCount;
+			}
+		}
 
 		public Boolean IsReadOnly => true;
 
@@ -159,11 +168,12 @@ public abstract class MultiIndexBase<TIndexType, T> : IndexBase<TIndexType, T>, 
 
 		public Int32 IndexOf(KeyValuePair<TIndexType, T> item)
 		{
-			IList<Int32>? listIndexes;
-
 			// find indexes of items for lookup (by keys)
+#pragma warning disable IDE0018 // Inline variable declaration
+			IList<Int32>? listIndexes;
 			if (!_indexMap.TryGetValue(item.Key, out listIndexes))
 				return -1;
+#pragma warning restore IDE0018 // Inline variable declaration
 
 			for (Int32 i = 0; i < listIndexes.Count; i++)
 			{
