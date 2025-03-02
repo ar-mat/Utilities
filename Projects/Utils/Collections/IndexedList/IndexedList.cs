@@ -11,7 +11,9 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 
+#pragma warning disable IDE0130 // Namespace does not match folder structure
 namespace Armat.Collections;
+#pragma warning restore IDE0130 // Namespace does not match folder structure
 
 // Represents a generic list of items
 // which can be indexed by different fields
@@ -340,13 +342,13 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 	{
 		// begin transaction
 		T prevValue = _list[indexInt];
-		Object? state = null;
+		Object? state;
+
+		// begin transaction
+		state = BeginSetValue(indexInt, indexExt, value, prevValue);
 
 		try
 		{
-			// begin transaction
-			state = BeginSetValue(indexInt, indexExt, value, prevValue);
-
 			// apply the change
 			_list[indexInt] = value;
 
@@ -505,11 +507,11 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 		Int32 count = ExternalCount;
 		Object? state = null;
 
+		// begin transaction
+		state = BeginClear(count);
+
 		try
 		{
-			// begin transaction
-			state = BeginClear(count);
-
 			// apply the change
 			_list.Clear();
 			if (_mask != null)
@@ -687,11 +689,11 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 		Object? state = null;
 		Boolean bListUpdated = false, bMaskUpdated = false, bMaskCreated = false;
 
+		// begin transaction
+		state = BeginInsertValue(internalIndex, index, item);
+
 		try
 		{
-			// begin transaction
-			state = BeginInsertValue(internalIndex, index, item);
-
 			// commit
 			if (zombieIndex == -1)
 			{
@@ -856,11 +858,11 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 		Boolean bListUpdated = false, bMaskUpdated = false, bMaskCreated = false;
 		T prevValue = _list[internalIndex];
 
+		// begin transaction
+		state = BeginRemoveValue(internalIndex, index, prevValue);
+
 		try
 		{
-			// begin transaction
-			state = BeginRemoveValue(internalIndex, index, prevValue);
-
 			// commit
 			// this will reset the item to the default value (or null)
 			// this value will never be returned out of the class, so null values should be acceptable.
@@ -955,11 +957,11 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 		Boolean bMaskRemoved = false, bMaskAdded = false, bMaskCreated = false;
 		T prevValue = _list[internalIndex];
 
+		// begin transaction
+		state = BeginMoveValue(internalIndex, newIndex, internalIndex, prevIndex, prevValue);
+
 		try
 		{
-			// begin transaction
-			state = BeginMoveValue(internalIndex, newIndex, internalIndex, prevIndex, prevValue);
-
 			// update the mask
 			if (_mask == null)
 			{

@@ -3,7 +3,9 @@ using System.Threading;
 
 using static Armat.Utils.Counter;
 
+#pragma warning disable IDE0130 // Namespace does not match folder structure
 namespace Armat.Utils;
+#pragma warning restore IDE0130 // Namespace does not match folder structure
 
 // A thread-safe locks counter. There are events notifying of locking and unlocking the underlying counter.
 // The Counter is considered to be locked if it's Value > 0, and unlocked otherwise.
