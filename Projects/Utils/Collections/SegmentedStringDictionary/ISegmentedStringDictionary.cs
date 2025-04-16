@@ -18,12 +18,6 @@ public interface ISegmentedStringDictionary : IDictionary<String, String>, IRead
 	Boolean ContainsKey(String key, String segmentKey);
 	Boolean TryGetValue(String key, String segmentKey, [MaybeNullWhen(false)] out String value);
 	String GetValue(String key, String segmentKey);
-	public virtual String GetValueOrDefault(String key, String segmentKey)
-	{
-		if (TryGetValue(key, segmentKey, out String? value))
-			return value;
-		return String.Empty;
-	}
 
 	void Add(String key, String segmentKey, String value);
 	Boolean Remove(String key, String segmentKey);

@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Reflection.Metadata;
 using System.Runtime.InteropServices;
 
 namespace Armat.Collections;
@@ -266,4 +267,20 @@ public class SegmentedStringDictionary : ISegmentedStringDictionary
 	}
 
 	#endregion // ISegmentedStringDictionary implementation
+}
+
+public static class SegmentedStringDictionaryExtensions
+{
+	public static String GetValueOrEmpty(this ISegmentedStringDictionary dictionary, String key, String segmentKey)
+	{
+		return GetValueOrDefault(dictionary, key, segmentKey, String.Empty);
+	}
+
+	public static String GetValueOrDefault(this ISegmentedStringDictionary dictionary, String key, String segmentKey, String defaultValue)
+	{
+		if (dictionary.TryGetValue(key, segmentKey, out String? value))
+			return value;
+
+		return defaultValue;
+	}
 }
