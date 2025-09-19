@@ -20,11 +20,16 @@ dotnet build $ProjectName.csproj -c $Configuration -o $BuildPath
 # Get the build version
 $Version = & "$OriginalDir/GetAssemblyVersion.ps1" -AssemblyPath $BuildPath/armat.utils.dll
 
+# Clean all contents in the Target path
+if (Test-Path $TargetPath) {
+    Remove-Item $TargetPath -Recurse -Force
+}
+
 # Publish artifacts
 dotnet publish $ProjectName.csproj -c $Configuration --no-build -o $TargetPath /p:OutputPath=$BuildPath
 
 # Zip the contents
-Compress-Archive -Path $TargetPath -DestinationPath $TargetPath/Armat.$ProjectName-$Version.zip -Force
+Compress-Archive -Path $TargetPath -DestinationPath $TargetPath/../Armat.$ProjectName-$Version.zip -Force
 
 # Go back to the original directory
 cd $OriginalDir
