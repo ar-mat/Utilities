@@ -11,7 +11,9 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 
+#pragma warning disable IDE0130 // Namespace does not match folder structure
 namespace Armat.Collections;
+#pragma warning restore IDE0130 // Namespace does not match folder structure
 
 // Represents a generic list of items
 // which can be indexed by different fields
@@ -25,7 +27,7 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 	private List<Int32>? _zombies;
 
 	private Dictionary<String, IIndexBase<T>>? _mapIndexesByName;
-	private IndexedListData _dataAccessorForIndex;
+	private readonly IndexedListData _dataAccessorForIndex;
 
 	private IndexedListChangeEmitter? _listChangeEmitter;
 
@@ -171,7 +173,7 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 		}
 
 		// synchronized
-		IsSynchronized = synchronized.HasValue ? synchronized.Value : other.IsSynchronized;
+		IsSynchronized = synchronized ?? other.IsSynchronized;
 		ValueComparer = valueComparer ?? EqualityComparer<T>.Default;
 	}
 
@@ -340,13 +342,13 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 	{
 		// begin transaction
 		T prevValue = _list[indexInt];
-		Object? state = null;
+		Object? state;
+
+		// begin transaction
+		state = BeginSetValue(indexInt, indexExt, value, prevValue);
 
 		try
 		{
-			// begin transaction
-			state = BeginSetValue(indexInt, indexExt, value, prevValue);
-
 			// apply the change
 			_list[indexInt] = value;
 
@@ -464,10 +466,10 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 				ReaderWriterLockSlim? rwLock = Interlocked.Exchange(ref _rwLock, null);
 				rwLock?.Dispose();
 			}
-			else if (_rwLock == null)
+			else
 			{
 				// create read / write lock
-				_rwLock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
+				_rwLock ??= new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
 			}
 		}
 	}
@@ -505,11 +507,11 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 		Int32 count = ExternalCount;
 		Object? state = null;
 
+		// begin transaction
+		state = BeginClear(count);
+
 		try
 		{
-			// begin transaction
-			state = BeginClear(count);
-
 			// apply the change
 			_list.Clear();
 			if (_mask != null)
@@ -687,11 +689,11 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 		Object? state = null;
 		Boolean bListUpdated = false, bMaskUpdated = false, bMaskCreated = false;
 
+		// begin transaction
+		state = BeginInsertValue(internalIndex, index, item);
+
 		try
 		{
-			// begin transaction
-			state = BeginInsertValue(internalIndex, index, item);
-
 			// commit
 			if (zombieIndex == -1)
 			{
@@ -856,11 +858,11 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 		Boolean bListUpdated = false, bMaskUpdated = false, bMaskCreated = false;
 		T prevValue = _list[internalIndex];
 
+		// begin transaction
+		state = BeginRemoveValue(internalIndex, index, prevValue);
+
 		try
 		{
-			// begin transaction
-			state = BeginRemoveValue(internalIndex, index, prevValue);
-
 			// commit
 			// this will reset the item to the default value (or null)
 			// this value will never be returned out of the class, so null values should be acceptable.
@@ -955,11 +957,11 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 		Boolean bMaskRemoved = false, bMaskAdded = false, bMaskCreated = false;
 		T prevValue = _list[internalIndex];
 
+		// begin transaction
+		state = BeginMoveValue(internalIndex, newIndex, internalIndex, prevIndex, prevValue);
+
 		try
 		{
-			// begin transaction
-			state = BeginMoveValue(internalIndex, newIndex, internalIndex, prevIndex, prevValue);
-
 			// update the mask
 			if (_mask == null)
 			{
@@ -1043,7 +1045,7 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 
 	private class IndexedListEnumerator : IEnumerator<T>
 	{
-		private IndexedList<T> _data;
+		private readonly IndexedList<T> _data;
 		private Int32 _index = -1;
 
 		public IndexedListEnumerator(IndexedList<T> data)
@@ -1807,9 +1809,8 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 			throw new ArgumentException($"Type {indexClassType} must implement \"IIndex<TIndexType, T>\" interface", nameof(indexClassType));
 
 		// create the index instance
-		Object? objInstance = indexClassType.Assembly.CreateInstance(indexClassType.FullName);
-		if (objInstance == null)
-			throw new ArgumentException($"Creation of an index of type {indexClassType} failed");
+		Object objInstance = indexClassType.Assembly.CreateInstance(indexClassType.FullName)
+			?? throw new ArgumentException($"Creation of an index of type {indexClassType} failed");
 
 		IIndex<TIndexType, T> index = (IIndex<TIndexType, T>)objInstance;
 		CreateIndex<TIndexType>(index, id, indexReader);
@@ -1820,9 +1821,8 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 	public void CreateIndex<TIndexType>(IIndex<TIndexType, T> index, String id, IIndexReader<TIndexType, T> indexReader)
 		where TIndexType : notnull
 	{
-		IIndexInitializer<TIndexType, T>? initializer = index as IIndexInitializer<TIndexType, T>;
-		if (initializer == null)
-			throw new NotImplementedException("interface \"IIndexInitializer\" is not implemented for the index");
+		IIndexInitializer<TIndexType, T> initializer = index as IIndexInitializer<TIndexType, T>
+			?? throw new NotImplementedException("interface \"IIndexInitializer\" is not implemented for the index");
 
 		// create the index instance
 		IndexedListData dataWrapper = _dataAccessorForIndex;
@@ -1848,8 +1848,7 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 			throw new ArgumentException("Index is already registered");
 		}
 
-		IListChangeHandler<T>? changeHandler = index as IListChangeHandler<T>;
-		if (changeHandler != null)
+		if (index is IListChangeHandler<T> changeHandler)
 		{
 			// initialize the index by filling in all current list items
 			if (_mask == null)
@@ -1894,10 +1893,11 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 		if (_mapIndexesByName == null)
 			return false;
 
-		IIndexBase<T>? index = null;
-
+#pragma warning disable IDE0018 // Inline variable declaration
+		IIndexBase<T>? index;
 		if (!_mapIndexesByName.Remove(id, out index) || index == null)
 			return false;
+#pragma warning restore IDE0018 // Inline variable declaration
 
 		if (index is IListChangeHandler<T> changeHandler)
 		{
@@ -1948,9 +1948,8 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 			throw new KeyNotFoundException();
 
 		// get the index
-		IIndexBase<T>? index = _mapIndexesByName.GetValueOrDefault(id);
-		if (index == null)
-			throw new KeyNotFoundException();
+		IIndexBase<T> index = _mapIndexesByName.GetValueOrDefault(id)
+			?? throw new KeyNotFoundException();
 
 		// reindex
 		index.ReIndex();
@@ -2060,6 +2059,8 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 	#endregion // Index Data List Class
 
 	#region List modification handlers
+
+#pragma warning disable IDE0220 // Add explicit cast
 
 	private Object? BeginInsertValue(Int32 indexInt, Int32 indexExt, T value)
 	{
@@ -2255,6 +2256,7 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 		try { _listChangeEmitter?.OnRollbackClear(count, state); }
 		catch { }
 	}
+#pragma warning restore IDE0220 // Add explicit cast
 
 	#endregion // List modification handlers
 }

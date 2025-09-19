@@ -26,7 +26,7 @@ public static class SerializationExtensions
 	{
 		return (TPackage)package.Pack();
 	}
-	public static IPackage[] Pack(this IEnumerable<IPackable> packables)
+	public static IPackage[] PackAll(this IEnumerable<IPackable> packables)
 	{
 		IPackage[] packages = new IPackage[packables.Count()];
 
@@ -36,18 +36,18 @@ public static class SerializationExtensions
 
 		return packages;
 	}
-	public static IPackage[] Pack<TPackable>(this IEnumerable<TPackable> packables)
+	public static IPackage[] PackAll<TPackable>(this IEnumerable<TPackable> packables)
 		where TPackable : IPackable
 	{
 		IPackage[] packages = new IPackage[packables.Count()];
 
 		Int32 index = 0;
-		foreach (IPackable element in packables)
+		foreach (TPackable element in packables)
 			packages[index++] = element.Pack();
 
 		return packages;
 	}
-	public static TPackage[] Pack<TPackable, TPackage>(this IEnumerable<TPackable> packables)
+	public static TPackage[] PackAll<TPackable, TPackage>(this IEnumerable<TPackable> packables)
 		where TPackable : IPackable
 		where TPackage : IPackage
 	{
@@ -65,7 +65,7 @@ public static class SerializationExtensions
 	{
 		return (TPackable)package.Unpack();
 	}
-	public static IPackable[] Unpack(this IEnumerable<IPackage> packages)
+	public static IPackable[] UnpackAll(this IEnumerable<IPackage> packages)
 	{
 		IPackable[] packables = new IPackable[packages.Count()];
 
@@ -75,7 +75,7 @@ public static class SerializationExtensions
 
 		return packables;
 	}
-	public static TPackable[] Unpack<TPackable>(this IEnumerable<IPackage> packages)
+	public static TPackable[] UnpackAll<TPackable>(this IEnumerable<IPackage> packages)
 		where TPackable : IPackable
 	{
 		TPackable[] packables = new TPackable[packages.Count()];
@@ -86,7 +86,7 @@ public static class SerializationExtensions
 
 		return packables;
 	}
-	public static TPackable[] Unpack<TPackage, TPackable>(this IEnumerable<TPackage> packages)
+	public static TPackable[] UnpackAll<TPackage, TPackable>(this IEnumerable<TPackage> packages)
 		where TPackage : IPackage
 		where TPackable : IPackable
 	{

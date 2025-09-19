@@ -1,7 +1,11 @@
 ﻿using System;
 using System.Threading;
 
+using static Armat.Utils.Counter;
+
+#pragma warning disable IDE0130 // Namespace does not match folder structure
 namespace Armat.Utils;
+#pragma warning restore IDE0130 // Namespace does not match folder structure
 
 // A thread-safe locks counter. There are events notifying of locking and unlocking the underlying counter.
 // The Counter is considered to be locked if it's Value > 0, and unlocked otherwise.
@@ -9,15 +13,15 @@ namespace Armat.Utils;
 public class LockCounter
 {
 	// internal counter
-	private readonly Counter _counter;
+	private Counter _counter;
 
 	public LockCounter()
 	{
-		_counter = new InternalCounter(this);
+		_counter = new Counter();
 	}
 	public LockCounter(Int32 numberOfLocks)
 	{
-		_counter = new InternalCounter(this, numberOfLocks);
+		_counter = new Counter(numberOfLocks);
 	}
 
 	// creates a locker object which
@@ -31,32 +35,59 @@ public class LockCounter
 	// Locks and returns the new lock counter
 	public Int32 Lock()
 	{
-		return (Int32)_counter.Increment(1);
+		Int32 newValue = (Int32)_counter.Increment(1);
+
+		OnCounterModified(newValue, newValue - 1);
+
+		return newValue;
 	}
 
 	// Locks and returns the new lock counter
 	public Int32 Lock(Int32 numberOfLocks)
 	{
-		return (Int32)_counter.Increment(numberOfLocks);
+		if (numberOfLocks == 0)
+			return _counter.Value;
+
+		Int32 newValue = (Int32)_counter.Increment(numberOfLocks);
+
+		OnCounterModified(newValue, newValue - numberOfLocks);
+
+		return newValue;
 	}
 
 	// Unlocks and returns the new lock counter
 	public Int32 Unlock()
 	{
-		return (Int32)_counter.Decrement(1);
+		Int32 newValue = (Int32)_counter.Decrement(1);
+
+		OnCounterModified(newValue, newValue + 1);
+
+		return newValue;
 	}
 
 	// Unlocks and returns the new lock counter
 	public Int32 Unlock(Int32 numberOfUnlocks)
 	{
-		return (Int32)_counter.Decrement(numberOfUnlocks);
+		if (numberOfUnlocks == 0)
+			return _counter.Value;
+
+		Int32 newValue = (Int32)_counter.Decrement(numberOfUnlocks);
+
+		OnCounterModified(newValue, newValue + numberOfUnlocks);
+
+		return newValue;
 	}
 
 	// gets / sets number of applied locks
 	public Int32 LockCount
 	{
 		get { return _counter.Value; }
-		set { _counter.Value = value; }
+		set
+		{
+			Int64 prevValue = _counter.Set(value);
+
+			OnCounterModified(value, prevValue);
+		}
 	}
 	// checks whether the counter is locked
 	public Boolean IsLocked
@@ -102,34 +133,6 @@ public class LockCounter
 	public event EventHandler? Locked;
 	// event triggered after Unlocking the Counter
 	public event EventHandler? Unlocked;
-
-	#region InternalCounter : Counter class
-
-	// derived class from Counter makes possible overriding the OnModified method
-	// instead of listening to Modified event
-	private class InternalCounter : Counter
-	{
-		public InternalCounter(LockCounter owner) : base()
-		{
-			Owner = owner;
-		}
-		public InternalCounter(LockCounter owner, Int32 value) : base(value)
-		{
-			Owner = owner;
-		}
-
-		public LockCounter Owner { get; }
-
-		protected override void OnModified(Int64 newValue, Int64 prevValue)
-		{
-			base.OnModified(newValue, prevValue);
-
-			// call the appropriate LockCounter method to notify about the change
-			Owner.OnCounterModified(newValue, prevValue);
-		}
-	}
-
-	#endregion // InternalCounter : Counter class
 }
 
 public struct LockCounterLocker : IDisposable
