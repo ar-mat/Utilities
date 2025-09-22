@@ -9,7 +9,7 @@
 		<RootNamespace>Armat.Utils</RootNamespace>
 		<AssemblyName>armat.utils</AssemblyName>
 
-		<Version>2.0.0</Version>
+		<Version>2.0.1</Version>
 		<AssemblyVersion>$(Version).0</AssemblyVersion>
 		<FileVersion>$(Version).0</FileVersion>
 		<!--<_NugetVersionPostfix>-beta</_NugetVersionPostfix>-->
@@ -37,12 +37,12 @@
 
 		<_ProjectWebpageUrl>http://armat.am/products/utilities</_ProjectWebpageUrl>
 		<_ProjectLicenseType>MIT</_ProjectLicenseType>
-		<_SourceCoreRepositoryRootUrl>https://github.com/ar-mat/Utilities/tree/main</_SourceCoreRepositoryRootUrl>
+		<_SourceCoreRepositoryRootUrl>https://github.com/ar-mat/Utilities</_SourceCoreRepositoryRootUrl>
 		<_SourceCoreRepositoryType>git</_SourceCoreRepositoryType>
 
 		<PackageVersion>$(Version)$(_NugetVersionPostfix)</PackageVersion>
 		<PackageProjectUrl>$(_ProjectWebpageUrl)</PackageProjectUrl>
-		<RepositoryUrl>$(_SourceCoreRepositoryRootUrl)/Projects/Utils</RepositoryUrl>
+		<RepositoryUrl>$(_SourceCoreRepositoryRootUrl)</RepositoryUrl>
 		<RepositoryType>$(_SourceCoreRepositoryType)</RepositoryType>
 		<PackageLicenseExpression>$(_ProjectLicenseType)</PackageLicenseExpression>
 
