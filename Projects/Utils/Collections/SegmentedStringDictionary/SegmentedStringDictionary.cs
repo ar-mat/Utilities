@@ -61,7 +61,7 @@ public class SegmentedStringDictionary : ISegmentedStringDictionary
 				throw new InvalidOperationException("Collection is read only");
 
 			// will throw in case of invalid key
-			ISegmentedStringDictionary.ValidateDictionaryKey(key);
+			ISegmentedStringDictionary.ValidateSegmentedDictionaryKey(key);
 
 			_stringDictionary[key] = value;
 		}
@@ -106,7 +106,7 @@ public class SegmentedStringDictionary : ISegmentedStringDictionary
 			throw new InvalidOperationException("Collection is read only");
 
 		// will throw in case of invalid key
-		ISegmentedStringDictionary.ValidateDictionaryKey(key);
+		ISegmentedStringDictionary.ValidateSegmentedDictionaryKey(key);
 
 		_stringDictionary.Add(key, value);
 	}
@@ -117,7 +117,7 @@ public class SegmentedStringDictionary : ISegmentedStringDictionary
 			throw new InvalidOperationException("Collection is read only");
 
 		// will throw in case of invalid key
-		ISegmentedStringDictionary.ValidateDictionaryKey(item.Key);
+		ISegmentedStringDictionary.ValidateSegmentedDictionaryKey(item.Key);
 
 		_stringDictionary.Add(item);
 	}
@@ -263,7 +263,8 @@ public class SegmentedStringDictionary : ISegmentedStringDictionary
 
 	public virtual ISegmentedStringDictionary GetSegment(String segmentKey)
 	{
-		throw new NotImplementedException();
+		// return a segment view
+		return new SegmentedStringDictionaryView(this, segmentKey);
 	}
 
 	#endregion // ISegmentedStringDictionary implementation

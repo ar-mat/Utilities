@@ -10,9 +10,9 @@ public interface ISegmentedStringDictionary : IDictionary<String, String>, IRead
 {
 	public static readonly StringComparison KeyComparison = StringComparison.Ordinal;
 
-	// SegmentedDictionaryKeys are formatted as Key@ParentSegmentKey|ChildSegmentKey
-	public const Char DictionaryKeySeparator = '@';
-	public const Char SegmentKeySeparator = '|';
+	// SegmentedDictionaryKeys are formatted as Key@RootSegmentKey|ParentSegmentKey|ChildSegmentKey|LeafSegmentKey
+	public const Char DictionaryKeySeparator = '@';     // separates key and segment key in a dictionary key
+	public const Char SegmentKeySeparator = '|';        // separates segments in a segment key
 
 	// ISegmentedDictionary interface
 	Boolean ContainsKey(String key, String segmentKey);
@@ -27,15 +27,24 @@ public interface ISegmentedStringDictionary : IDictionary<String, String>, IRead
 	// returns a view to the segment
 	ISegmentedStringDictionary GetSegment(String segmentKey);
 
-	static void ValidateDictionaryKey(String dictionaryKey)
+	static void ValidateSegmentedDictionaryKey(String segmentedDictionaryKey)
 	{
-		if (!DecomposeDictionaryKey(dictionaryKey, out String key, out String segmentKey))
+		if (!DecomposeDictionaryKey(segmentedDictionaryKey, out String key, out String segmentKey))
 			throw new ArgumentException("Invalid directory key format");
 
-		ValidateDictionaryKey(key, segmentKey);
+		ValidateSegmentedDictionaryKey(key, segmentKey);
 	}
 
-	static void ValidateDictionaryKey(String key, String segmentKey)
+	static void ValidateSegmentedDictionaryKey(String key, String segmentKey)
+	{
+		// ensure the key is valid
+		ValidateDictionaryKey(key);
+
+		// ensure the segment key is valid
+		ValidateSegmentKey(segmentKey);
+	}
+
+	static void ValidateDictionaryKey(String key)
 	{
 		if (key.Length == 0)
 			throw new ArgumentException("Key cannot be empty", nameof(key));
@@ -43,7 +52,10 @@ public interface ISegmentedStringDictionary : IDictionary<String, String>, IRead
 		// ensure that the key doesn't contain any of DictionaryKeySeparator or SegmentKeySeparator character
 		if (key.Contains(DictionaryKeySeparator) || key.Contains(SegmentKeySeparator))
 			throw new ArgumentException("Key cannot contain any of DictionaryKeySeparator or SegmentKeySeparator characters", nameof(key));
+	}
 
+	static void ValidateSegmentKey(String segmentKey)
+	{
 		// ensure that the key doesn't contain DictionaryKeySeparator character
 		if (segmentKey.Contains(DictionaryKeySeparator))
 			throw new ArgumentException("Segment Key cannot contain DictionaryKeySeparator character", nameof(segmentKey));
@@ -52,7 +64,7 @@ public interface ISegmentedStringDictionary : IDictionary<String, String>, IRead
 	public static String ComposeDictionaryKey(String key, String segmentKey)
 	{
 		// ensure the key is valid
-		ValidateDictionaryKey(key, segmentKey);
+		ValidateSegmentedDictionaryKey(key, segmentKey);
 
 		return segmentKey.Length > 0 ?
 			key + DictionaryKeySeparator + segmentKey :
@@ -100,8 +112,6 @@ public interface ISegmentedStringDictionary : IDictionary<String, String>, IRead
 			// ensure that this segment belongs to the parent segment
 			return segmentKey.StartsWith(parentSegmentKey, KeyComparison) &&
 				(segmentKey.Length == parentSegmentKey.Length || segmentKey[parentSegmentKey.Length] == SegmentKeySeparator);
-
-
 		}
 
 		return false;
@@ -117,12 +127,12 @@ public interface ISegmentedStringDictionary : IDictionary<String, String>, IRead
 			segmentKey;
 	}
 
-	public static Boolean DecomposeSegmentKey(String fullSegmentKey, out String segmentKey, out String parentSegmentKey)
+	public static Boolean DecomposeLeafSegmentKey(String fullSegmentKey, out String leafSegmentKey, out String parentSegmentKey)
 	{
 		if (fullSegmentKey.Length == 0)
 		{
 			parentSegmentKey = String.Empty;
-			segmentKey = String.Empty;
+			leafSegmentKey = String.Empty;
 			return false;
 		}
 
@@ -131,15 +141,81 @@ public interface ISegmentedStringDictionary : IDictionary<String, String>, IRead
 		{
 			// if there's no separator, then the parent segment key is an empty string
 			parentSegmentKey = String.Empty;
-			segmentKey = fullSegmentKey;
+			leafSegmentKey = fullSegmentKey;
 		}
 		else
 		{
 			// parent segment key goes the first
 			parentSegmentKey = fullSegmentKey[..sepIndex];
-			segmentKey = fullSegmentKey[(sepIndex + 1)..];
+			leafSegmentKey = fullSegmentKey[(sepIndex + 1)..];
 		}
 
 		return true;
+	}
+
+	public static Boolean DecomposeRootSegmentKey(String fullSegmentKey, out String rootSegmentKey, out String childSegmentKey)
+	{
+		if (fullSegmentKey.Length == 0)
+		{
+			childSegmentKey = String.Empty;
+			rootSegmentKey = String.Empty;
+			return false;
+		}
+
+		Int32 sepIndex = fullSegmentKey.IndexOf(SegmentKeySeparator);
+		if (sepIndex == -1)
+		{
+			// if there's no separator, then the parent segment key is an empty string
+			childSegmentKey = String.Empty;
+			rootSegmentKey = fullSegmentKey;
+		}
+		else
+		{
+			// parent segment key goes the first
+			childSegmentKey = fullSegmentKey[..sepIndex];
+			rootSegmentKey = fullSegmentKey[(sepIndex + 1)..];
+		}
+
+		return true;
+	}
+
+	public static Boolean DecomposeSegmentKey(String fullSegmentKey, String parentSegmentKey, out String childSegmentKey)
+	{
+		if (fullSegmentKey.Length == 0)
+		{
+			childSegmentKey = String.Empty;
+			return false;
+		}
+
+		if (parentSegmentKey.Length == 0)
+		{
+			// if parent segment key is empty, then the child segment key is the full segment key
+			childSegmentKey = fullSegmentKey;
+			return true;
+		}
+
+		// ensure that this segment belongs to the parent segment
+		if (!fullSegmentKey.StartsWith(parentSegmentKey, KeyComparison))
+		{
+			childSegmentKey = String.Empty;
+			return false;
+		}
+
+		if (fullSegmentKey.Length == parentSegmentKey.Length)
+		{
+			// exact match
+			childSegmentKey = String.Empty;
+			return true;
+		}
+		else if (fullSegmentKey[parentSegmentKey.Length] == SegmentKeySeparator)
+		{
+			// valid child segment
+			childSegmentKey = fullSegmentKey[(parentSegmentKey.Length + 1)..];
+			return true;
+		}
+
+		// doesn't belong to the parent segment
+		childSegmentKey = String.Empty;
+		return false;
 	}
 }
