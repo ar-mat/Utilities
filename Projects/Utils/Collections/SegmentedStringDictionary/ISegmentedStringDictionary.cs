@@ -157,8 +157,8 @@ public interface ISegmentedStringDictionary : IDictionary<String, String>, IRead
 	{
 		if (fullSegmentKey.Length == 0)
 		{
-			childSegmentKey = String.Empty;
 			rootSegmentKey = String.Empty;
+			childSegmentKey = String.Empty;
 			return false;
 		}
 
@@ -166,14 +166,14 @@ public interface ISegmentedStringDictionary : IDictionary<String, String>, IRead
 		if (sepIndex == -1)
 		{
 			// if there's no separator, then the parent segment key is an empty string
-			childSegmentKey = String.Empty;
 			rootSegmentKey = fullSegmentKey;
+			childSegmentKey = String.Empty;
 		}
 		else
 		{
 			// parent segment key goes the first
-			childSegmentKey = fullSegmentKey[..sepIndex];
-			rootSegmentKey = fullSegmentKey[(sepIndex + 1)..];
+			rootSegmentKey = fullSegmentKey[..sepIndex];
+			childSegmentKey = fullSegmentKey[(sepIndex + 1)..];
 		}
 
 		return true;

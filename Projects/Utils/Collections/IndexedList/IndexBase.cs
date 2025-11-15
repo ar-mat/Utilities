@@ -725,6 +725,8 @@ public abstract class IndexBase<TIndexType, T> :
 
 #region Comparer -> EqualityComparer
 
+// Helper class to convert IComparer<T> into IEqualityComparer<T>
+// Note: GetHashCode method is not supported
 public class EqualityComparerHelper<T> : IEqualityComparer<T>
 {
 	public EqualityComparerHelper(IComparer<T>? comparer)

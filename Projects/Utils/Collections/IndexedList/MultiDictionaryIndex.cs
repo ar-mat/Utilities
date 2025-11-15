@@ -28,7 +28,7 @@ public abstract class MultiDictionaryIndex<TIndexType, T> : MultiIndexBase<TInde
 	#region IIndex implementation
 
 	protected abstract IDictionary<TIndexType, IList<Int32>> CreateIndexMap();
-	protected abstract void EnsureIndexMapCapacity(Int32 capacity);
+	protected abstract void EnsureIndexMapCapacity(IDictionary<TIndexType, IList<Int32>> map, Int32 capacity);
 
 	private static IList<Int32> CreateValueList(ICollection<Int32>? other = null)
 	{
@@ -51,7 +51,7 @@ public abstract class MultiDictionaryIndex<TIndexType, T> : MultiIndexBase<TInde
 		MultiDictionaryIndex<TIndexType, T> source = (MultiDictionaryIndex<TIndexType, T>)sourceIndex;
 
 		// copy current class data
-		EnsureIndexMapCapacity(source._indexMap.Count);
+		EnsureIndexMapCapacity(_indexMap, source._indexMap.Count);
 		foreach (KeyValuePair<TIndexType, IList<Int32>> pair in source._indexMap)
 			_indexMap.Add(pair.Key, CreateValueList(pair.Value));
 	}
@@ -66,7 +66,7 @@ public abstract class MultiDictionaryIndex<TIndexType, T> : MultiIndexBase<TInde
 	{
 		// create new index
 		IDictionary<TIndexType, IList<Int32>> newIndex = CreateIndexMap();
-		EnsureIndexMapCapacity(_indexMap.Count);
+		EnsureIndexMapCapacity(newIndex, _indexMap.Count);
 
 		// compute the index
 		foreach (KeyValuePair<TIndexType, IList<Int32>> pair in _indexMap)
@@ -85,6 +85,8 @@ public abstract class MultiDictionaryIndex<TIndexType, T> : MultiIndexBase<TInde
 				listNewIndexes.Add(index);
 			}
 		}
+
+		_indexMap = newIndex;
 	}
 
 	public override ICollection<TIndexType> Keys
@@ -202,7 +204,7 @@ public abstract class MultiDictionaryIndex<TIndexType, T> : MultiIndexBase<TInde
 				if (listIndexesPrev.Count == 1)
 				{
 					if (listIndexesPrev[0] == index)
-						_indexMap.Remove(key);
+						_indexMap.Remove(prevKey);
 				}
 				else
 				{
@@ -244,7 +246,7 @@ public abstract class MultiDictionaryIndex<TIndexType, T> : MultiIndexBase<TInde
 				if (listIndexes[listIndexes.Count - 1] == index)
 #pragma warning restore IDE0056 // Use index operator
 				{
-					if (listIndexes.Count == 0)
+					if (listIndexes.Count == 1)
 						_indexMap.Remove(key);
 					else
 						listIndexes.RemoveAt(listIndexes.Count - 1);
@@ -299,9 +301,9 @@ public class MultiHashIndex<TIndexType, T> : MultiDictionaryIndex<TIndexType, T>
 		return new Dictionary<TIndexType, IList<Int32>>(KeyComparer);
 	}
 
-	protected override void EnsureIndexMapCapacity(Int32 capacity)
+	protected override void EnsureIndexMapCapacity(IDictionary<TIndexType, IList<Int32>> map, Int32 capacity)
 	{
-		((Dictionary<TIndexType, IList<Int32>>)_indexMap).EnsureCapacity(capacity);
+		((Dictionary<TIndexType, IList<Int32>>)map).EnsureCapacity(capacity);
 	}
 }
 
@@ -312,7 +314,7 @@ public class MultiTreeIndex<TIndexType, T> : MultiDictionaryIndex<TIndexType, T>
 	private readonly IComparer<TIndexType> _comparer;
 
 	public MultiTreeIndex(IComparer<TIndexType>? comparer = null)
-		: base(new SortedDictionary<TIndexType, IList<Int32>>(Comparer<TIndexType>.Default),
+		: base(new SortedDictionary<TIndexType, IList<Int32>>(comparer ?? Comparer<TIndexType>.Default),
 			  new EqualityComparerHelper<TIndexType>(comparer))
 	{
 		_comparer = comparer ?? Comparer<TIndexType>.Default;
@@ -333,7 +335,7 @@ public class MultiTreeIndex<TIndexType, T> : MultiDictionaryIndex<TIndexType, T>
 		return new SortedDictionary<TIndexType, IList<Int32>>(_comparer);
 	}
 
-	protected override void EnsureIndexMapCapacity(Int32 capacity)
+	protected override void EnsureIndexMapCapacity(IDictionary<TIndexType, IList<Int32>> map, Int32 capacity)
 	{
 	}
 }

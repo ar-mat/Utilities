@@ -82,8 +82,8 @@ public static class ContentComparer
 		if (first == second)
 			return true;
 
-		IEnumerator<TItem> enumFirst = first.GetEnumerator();
-		IEnumerator<TItem> enumSecond = second.GetEnumerator();
+		using IEnumerator<TItem> enumFirst = first.GetEnumerator();
+		using IEnumerator<TItem> enumSecond = second.GetEnumerator();
 
 		while (enumFirst.MoveNext())
 		{

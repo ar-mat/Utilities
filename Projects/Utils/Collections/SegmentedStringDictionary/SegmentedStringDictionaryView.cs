@@ -32,7 +32,8 @@ public sealed class SegmentedStringDictionaryView : ISegmentedStringDictionary
 		{
 			if (ISegmentedStringDictionary.DecomposeSegmentKey(fullSegmentKey, _segmentKey, out String childSegmentKey))
 			{
-				key = ISegmentedStringDictionary.ComposeSegmentKey(key, childSegmentKey);
+				if (childSegmentKey.Length > 0)
+					key = ISegmentedStringDictionary.ComposeDictionaryKey(key, childSegmentKey);
 			}
 			else
 			{
@@ -53,8 +54,10 @@ public sealed class SegmentedStringDictionaryView : ISegmentedStringDictionary
 
 		if (ISegmentedStringDictionary.DecomposeDictionaryKey(viewKey, out String key, out String childSegmentKey))
 		{
-			String fullSegmentKey = ISegmentedStringDictionary.ComposeSegmentKey(childSegmentKey, _segmentKey);
-			key = ISegmentedStringDictionary.ComposeSegmentKey(key, fullSegmentKey);
+			String fullSegmentKey = _segmentKey;
+			if (childSegmentKey.Length > 0)
+				fullSegmentKey = ISegmentedStringDictionary.ComposeSegmentKey(childSegmentKey, _segmentKey);
+			key = ISegmentedStringDictionary.ComposeDictionaryKey(key, fullSegmentKey);
 		}
 		else
 		{
@@ -105,6 +108,7 @@ public sealed class SegmentedStringDictionaryView : ISegmentedStringDictionary
 		{
 			return _parent.GetInnerReadOnlyDictionary().Keys
 				.Select(dictKey => ToViewKey(dictKey))
+				.Where(dictKey => dictKey.Length > 0)
 				.Count();
 		}
 	}

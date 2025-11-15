@@ -712,7 +712,7 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 			{
 				// if there's no mask, then internal indexes correspond to the external ones
 				// said above, we need to create the mask only if the newly added item should not appear at the end
-				if (index != externalCount - 1)
+				if (index != externalCount)
 				{
 					// generate a mask with all indexes including the added one
 					List<Int32> mask = new(_list.Count);

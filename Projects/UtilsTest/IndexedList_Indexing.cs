@@ -126,8 +126,6 @@ public class IndexedList_Indexing
 	}
 	private void Append(IndexedList<Data> list)
 	{
-		CreateList();
-
 		var indexInfo = list.GetIndex<Info>("Info")!;
 		var indexInt = list.GetIndex<Int32>("Int32")!;
 		var indexString = list.GetIndex<String>("String")!;

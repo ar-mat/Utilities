@@ -101,7 +101,7 @@ public sealed class ConcurrentList<T> : IList<T>, IReadOnlyList<T>, IList, IEqua
 		using var locker = _lock.CreateWLocker();
 
 		_list.Add(value);
-		addedIndex = _list.Count;
+		addedIndex = _list.Count - 1;
 
 		return value;
 	}
@@ -120,7 +120,7 @@ public sealed class ConcurrentList<T> : IList<T>, IReadOnlyList<T>, IList, IEqua
 
 		T result = itemProvider();
 		_list.Add(result);
-		addedIndex = _list.Count;
+		addedIndex = _list.Count - 1;
 
 		return result;
 	}

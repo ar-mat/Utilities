@@ -29,7 +29,7 @@ public abstract class DictionaryIndex<TIndexType, T> : IndexBase<TIndexType, T>
 	#region IIndex implementation
 
 	protected abstract IDictionary<TIndexType, Int32> CreateIndexMap();
-	protected abstract void EnsureIndexMapCapacity(Int32 capacity);
+	protected abstract void EnsureIndexMapCapacity(IDictionary<TIndexType, Int32> map, Int32 capacity);
 
 	protected override void CopyFrom(IndexBase<TIndexType, T> sourceIndex)
 	{
@@ -39,7 +39,7 @@ public abstract class DictionaryIndex<TIndexType, T> : IndexBase<TIndexType, T>
 		DictionaryIndex<TIndexType, T> source = (DictionaryIndex<TIndexType, T>)sourceIndex;
 
 		// copy current class data
-		EnsureIndexMapCapacity(source._indexMap.Count);
+		EnsureIndexMapCapacity(_indexMap, source._indexMap.Count);
 		foreach (KeyValuePair<TIndexType, Int32> pair in source._indexMap)
 			_indexMap.Add(pair.Key, pair.Value);
 	}
@@ -54,7 +54,7 @@ public abstract class DictionaryIndex<TIndexType, T> : IndexBase<TIndexType, T>
 	{
 		// create new index
 		IDictionary<TIndexType, Int32> newIndex = CreateIndexMap();
-		EnsureIndexMapCapacity(_indexMap.Count);
+		EnsureIndexMapCapacity(newIndex, _indexMap.Count);
 
 		// compute the index
 		foreach (KeyValuePair<TIndexType, Int32> pair in _indexMap)
@@ -213,9 +213,9 @@ public class HashIndex<TIndexType, T> : DictionaryIndex<TIndexType, T>
 		return new Dictionary<TIndexType, Int32>(KeyComparer);
 	}
 
-	protected override void EnsureIndexMapCapacity(Int32 capacity)
+	protected override void EnsureIndexMapCapacity(IDictionary<TIndexType, Int32> map, Int32 capacity)
 	{
-		((Dictionary<TIndexType, Int32>)_indexMap).EnsureCapacity(capacity);
+		((Dictionary<TIndexType, Int32>)map).EnsureCapacity(capacity);
 	}
 }
 
@@ -247,7 +247,7 @@ public class TreeIndex<TIndexType, T> : DictionaryIndex<TIndexType, T>
 		return new SortedDictionary<TIndexType, Int32>(KeyComparer);
 	}
 
-	protected override void EnsureIndexMapCapacity(Int32 capacity)
+	protected override void EnsureIndexMapCapacity(IDictionary<TIndexType, Int32> map, Int32 capacity)
 	{
 	}
 }

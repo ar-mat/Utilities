@@ -21,7 +21,7 @@ public static class JsonSerializer
 			return result;
 
 		// write into a memory stream
-		System.IO.MemoryStream stream = new();
+		using System.IO.MemoryStream stream = new();
 		Boolean succeeded = ToStream(stream, data, objectType, options);
 
 		// convert the result to string
@@ -41,7 +41,7 @@ public static class JsonSerializer
 	public static Boolean ToFile(String filePath, Object? data, Type objectType, JsonWriterOptions options = default)
 	{
 		// create / reset the file
-		FileStream stream = File.OpenWrite(filePath);
+		using FileStream stream = File.OpenWrite(filePath);
 
 		// write into the file
 		return ToStream(stream, data, objectType, options);
@@ -119,7 +119,7 @@ public static class JsonSerializer
 	}
 	public static Object? FromFile(String filePath, ITypeLocator typeLocator, JsonDocumentOptions options = default)
 	{
-		FileStream stream = File.OpenRead(filePath);
+		using FileStream stream = File.OpenRead(filePath);
 		return FromStream(stream, typeLocator, options);
 	}
 	public static T? FromStream<T>(Stream stream, JsonDocumentOptions options = default)
