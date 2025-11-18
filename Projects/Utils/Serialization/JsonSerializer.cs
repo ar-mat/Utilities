@@ -1,5 +1,4 @@
-﻿
-using System;
+﻿using System;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -33,7 +32,7 @@ public static class JsonSerializer
 	public static Boolean ToFile<T>(String filePath, T? data, JsonWriterOptions options = default)
 	{
 		// create / reset the file
-		FileStream stream = File.OpenWrite(filePath);
+		using FileStream stream = File.OpenWrite(filePath);
 
 		// write into the file
 		return ToStream(stream, data, options);

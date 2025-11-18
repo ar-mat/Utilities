@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Data;
+using System.Linq;
 using System.Reflection;
 using System.Text;
 
@@ -314,16 +315,16 @@ public class IndigentList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Ind
 	public IEnumerator<T> GetEnumerator()
 	{
 		if (_count == 0)
-			return EmptyEnumerator.GetInstance();
+			return Enumerable.Empty<T>().GetEnumerator();
 
 		if (_arrItems != null)
 		{
 			System.Diagnostics.Debug.Assert(_arrItems.Length >= _count);
-			return ((IEnumerable<T>)_arrItems).GetEnumerator();
+			return Enumerable.Take<T>(_arrItems, _count).GetEnumerator();
 		}
 
 		System.Diagnostics.Debug.Assert(_count == 1 && _singleItem != null);
-		return SingleItemEnumerator.GetInstance(_singleItem);
+		return Enumerable.Repeat<T>(_singleItem, 1).GetEnumerator();
 	}
 
 	IEnumerator IEnumerable.GetEnumerator()
@@ -641,58 +642,5 @@ public class IndigentList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Ind
 				Array.Resize<T>(ref _arrItems, capacity);
 			}
 		}
-	}
-
-
-	private readonly struct EmptyEnumerator : IEnumerator<T>
-	{
-		public T Current => throw new InvalidOperationException();
-		Object IEnumerator.Current => throw new InvalidOperationException();
-
-		public void Dispose() { }
-		public Boolean MoveNext() { return false; }
-		public void Reset() { }
-
-		private static readonly EmptyEnumerator _instance = new();
-		public static IEnumerator<T> GetInstance() { return _instance; }
-	}
-
-	private struct SingleItemEnumerator : IEnumerator<T>
-	{
-		public SingleItemEnumerator(T value)
-		{
-			_value = value;
-			_pos = -1;
-		}
-
-		private readonly T _value;
-		private Int32 _pos;
-
-		public T Current => _value;
-		Object? IEnumerator.Current => _value;
-
-		public void Dispose()
-		{
-			_pos = -2;
-		}
-		public Boolean MoveNext()
-		{
-			if (_pos == -2)
-			{
-				throw new ObjectDisposedException(nameof(SingleItemEnumerator));
-			}
-			if (_pos == -1)
-			{
-				_pos++;
-				return true;
-			}
-			return false;
-		}
-		public void Reset()
-		{
-			_pos = -1;
-		}
-
-		public static IEnumerator<T> GetInstance(T value) { return new SingleItemEnumerator(value); }
 	}
 }

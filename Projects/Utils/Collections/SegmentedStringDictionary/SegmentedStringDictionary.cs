@@ -258,7 +258,9 @@ public class SegmentedStringDictionary : ISegmentedStringDictionary
 
 	public IReadOnlyDictionary<String, String> GetInnerReadOnlyDictionary()
 	{
-		return (IReadOnlyDictionary<String, String>)_stringDictionary;
+		return _stringDictionary is IReadOnlyDictionary<String, String> ro
+			? ro
+			: new System.Collections.ObjectModel.ReadOnlyDictionary<String, String>(_stringDictionary);
 	}
 
 	public virtual ISegmentedStringDictionary GetSegment(String segmentKey)
