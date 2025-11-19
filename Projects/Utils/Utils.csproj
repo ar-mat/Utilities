@@ -9,7 +9,7 @@
 		<RootNamespace>Armat.Utils</RootNamespace>
 		<AssemblyName>armat.utils</AssemblyName>
 
-		<Version>2.0.2</Version>
+		<Version>2.0.3</Version>
 		<AssemblyVersion>$(Version).0</AssemblyVersion>
 		<FileVersion>$(Version).0</FileVersion>
 		<!--<_NugetVersionPostfix>-beta</_NugetVersionPostfix>-->
@@ -53,7 +53,7 @@
 			<Pack>True</Pack>
 			<PackagePath>\</PackagePath>
 		</None>
-		<None Update="Readme.md">
+		<None Update="Readme_.md">
 			<Pack>True</Pack>
 			<PackagePath>\</PackagePath>
 		</None>
