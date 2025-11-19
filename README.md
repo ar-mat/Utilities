@@ -146,10 +146,6 @@ using (rwLock.CreateWLocker()) {
 
 This project is licensed under the MIT License - see the [LICENSE.txt](LICENSE.txt) file for details.
 
-## Authors
-
-- Ara Petrosyan
-
 ## Links
 
 - [Project Website](http://armat.am/products/utilities)
