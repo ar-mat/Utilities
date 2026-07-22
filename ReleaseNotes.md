@@ -11,7 +11,7 @@ Release history of the [`armat.utils`](https://www.nuget.org/packages/armat.util
 
 ---
 
-## Version 3.0.0 (2026-07-12)
+## Version 3.0.0-beta (unreleased)
 
 Stability release based on a full source audit, plus a retarget to .NET 10. It fixes a number of
 long-standing correctness and thread-safety bugs and cleans up several ambiguous or
