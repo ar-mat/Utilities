@@ -1,9 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Data;
 using System.Linq;
-using System.Reflection;
 using System.Text;
 
 namespace Armat.Collections;
@@ -109,8 +107,8 @@ public class IndigentList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Ind
 			}
 			else
 			{
-				System.Diagnostics.Debug.Assert(_singleItem != null && index == 0 && _count == 1);
-				return _singleItem;
+				System.Diagnostics.Debug.Assert(index == 0 && _count == 1 && _singleItem != null);
+				return _singleItem!;
 			}
 		}
 		set
@@ -196,7 +194,6 @@ public class IndigentList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Ind
 			System.Diagnostics.Debug.Assert(_arrItems.Length >= _count);
 
 			// do not preserve the capacity
-			// Array.Clear(_arrItems, 0, _count);
 			_arrItems = null;
 			_count = 0;
 		}
@@ -241,7 +238,7 @@ public class IndigentList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Ind
 		else
 		{
 			System.Diagnostics.Debug.Assert(_count == 1 && _singleItem != null);
-			array[arrayIndex] = _singleItem;
+			array[arrayIndex] = _singleItem!;
 		}
 	}
 
@@ -264,10 +261,10 @@ public class IndigentList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Ind
 		else
 		{
 			if (index != 0 || count != 1)
-				throw new IndexOutOfRangeException();
+				throw new ArgumentOutOfRangeException(nameof(index));
 
 			System.Diagnostics.Debug.Assert(_count == 1 && _singleItem != null);
-			array[arrayIndex] = _singleItem;
+			array[arrayIndex] = _singleItem!;
 		}
 	}
 
@@ -309,7 +306,7 @@ public class IndigentList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Ind
 		}
 
 		System.Diagnostics.Debug.Assert(_count == 1 && _singleItem != null);
-		return new T[] { _singleItem };
+		return new T[] { _singleItem! };
 	}
 
 	public IEnumerator<T> GetEnumerator()
@@ -324,7 +321,7 @@ public class IndigentList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Ind
 		}
 
 		System.Diagnostics.Debug.Assert(_count == 1 && _singleItem != null);
-		return Enumerable.Repeat<T>(_singleItem, 1).GetEnumerator();
+		return Enumerable.Repeat<T>(_singleItem!, 1).GetEnumerator();
 	}
 
 	IEnumerator IEnumerable.GetEnumerator()
@@ -360,7 +357,7 @@ public class IndigentList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Ind
 	public void Insert(Int32 index, T item)
 	{
 		if (index < 0 || index > _count)
-			throw new IndexOutOfRangeException();
+			throw new ArgumentOutOfRangeException(nameof(index));
 
 		if (_arrItems != null)
 		{
@@ -436,7 +433,7 @@ public class IndigentList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Ind
 	public void RemoveAt(Int32 index)
 	{
 		if (index < 0 || index >= _count)
-			throw new IndexOutOfRangeException();
+			throw new ArgumentOutOfRangeException(nameof(index));
 
 		if (_arrItems != null)
 		{
@@ -604,7 +601,7 @@ public class IndigentList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Ind
 	private void SetCapacity(Int32 capacity)
 	{
 		if (capacity <= 0 || capacity < _count)
-			throw new ArgumentException("Capacity must be a positive number greater then the count", nameof(capacity));
+			throw new ArgumentException("Capacity must be a positive number greater than the count", nameof(capacity));
 
 		if (_arrItems == null)
 		{
@@ -619,7 +616,7 @@ public class IndigentList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Ind
 				if (_count > 0)
 				{
 					System.Diagnostics.Debug.Assert(_singleItem != null);
-					_arrItems[0] = _singleItem;
+					_arrItems[0] = _singleItem!;
 				}
 				_singleItem = default;
 			}
@@ -633,7 +630,6 @@ public class IndigentList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Ind
 					_singleItem = _arrItems[0];
 
 				// reset the array
-				// Array.Clear(_arrItems, 0, _count);
 				_arrItems = null;
 			}
 			else

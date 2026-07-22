@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Threading;
 
 namespace Armat.Utils;
@@ -59,6 +58,7 @@ public struct Counter : IEquatable<Counter>, IComparable<Counter>
 	}
 
 	// gets / sets current value of the counter (32 bit version)
+	// note: the getter truncates the underlying 64 bit value; use Value64 for lossless access
 	public Int32 Value
 	{
 		get { return (Int32)Get(); }
@@ -103,7 +103,7 @@ public struct Counter : IEquatable<Counter>, IComparable<Counter>
 		if (obj is Counter counter)
 			return Value64 == counter.Value64;
 		if (obj is Int32 int32)
-			return Value == int32;
+			return Value64 == int32;
 		if (obj is Int64 int64)
 			return Value64 == int64;
 
@@ -128,7 +128,7 @@ public struct Counter : IEquatable<Counter>, IComparable<Counter>
 	}
 	public static Boolean operator ==(Int32 left, Counter right)
 	{
-		return left == right.Value;
+		return left == right.Value64;
 	}
 	public static Boolean operator ==(Int64 left, Counter right)
 	{
@@ -136,7 +136,7 @@ public struct Counter : IEquatable<Counter>, IComparable<Counter>
 	}
 	public static Boolean operator ==(Counter left, Int32 right)
 	{
-		return left.Value == right;
+		return left.Value64 == right;
 	}
 	public static Boolean operator ==(Counter left, Int64 right)
 	{
@@ -145,11 +145,11 @@ public struct Counter : IEquatable<Counter>, IComparable<Counter>
 
 	public static Boolean operator !=(Counter left, Counter right)
 	{
-		return left.Equals(right);
+		return !left.Equals(right);
 	}
 	public static Boolean operator !=(Int32 left, Counter right)
 	{
-		return left != right.Value;
+		return left != right.Value64;
 	}
 	public static Boolean operator !=(Int64 left, Counter right)
 	{
@@ -157,7 +157,7 @@ public struct Counter : IEquatable<Counter>, IComparable<Counter>
 	}
 	public static Boolean operator !=(Counter left, Int32 right)
 	{
-		return left.Value != right;
+		return left.Value64 != right;
 	}
 	public static Boolean operator !=(Counter left, Int64 right)
 	{
@@ -170,7 +170,7 @@ public struct Counter : IEquatable<Counter>, IComparable<Counter>
 	}
 	public static Boolean operator <(Int32 left, Counter right)
 	{
-		return left < right.Value;
+		return left < right.Value64;
 	}
 	public static Boolean operator <(Int64 left, Counter right)
 	{
@@ -178,7 +178,7 @@ public struct Counter : IEquatable<Counter>, IComparable<Counter>
 	}
 	public static Boolean operator <(Counter left, Int32 right)
 	{
-		return left.Value < right;
+		return left.Value64 < right;
 	}
 	public static Boolean operator <(Counter left, Int64 right)
 	{
@@ -191,7 +191,7 @@ public struct Counter : IEquatable<Counter>, IComparable<Counter>
 	}
 	public static Boolean operator <=(Int32 left, Counter right)
 	{
-		return left <= right.Value;
+		return left <= right.Value64;
 	}
 	public static Boolean operator <=(Int64 left, Counter right)
 	{
@@ -199,7 +199,7 @@ public struct Counter : IEquatable<Counter>, IComparable<Counter>
 	}
 	public static Boolean operator <=(Counter left, Int32 right)
 	{
-		return left.Value <= right;
+		return left.Value64 <= right;
 	}
 	public static Boolean operator <=(Counter left, Int64 right)
 	{
@@ -212,7 +212,7 @@ public struct Counter : IEquatable<Counter>, IComparable<Counter>
 	}
 	public static Boolean operator >(Int32 left, Counter right)
 	{
-		return left > right.Value;
+		return left > right.Value64;
 	}
 	public static Boolean operator >(Int64 left, Counter right)
 	{
@@ -220,7 +220,7 @@ public struct Counter : IEquatable<Counter>, IComparable<Counter>
 	}
 	public static Boolean operator >(Counter left, Int32 right)
 	{
-		return left.Value > right;
+		return left.Value64 > right;
 	}
 	public static Boolean operator >(Counter left, Int64 right)
 	{
@@ -233,7 +233,7 @@ public struct Counter : IEquatable<Counter>, IComparable<Counter>
 	}
 	public static Boolean operator >=(Int32 left, Counter right)
 	{
-		return left >= right.Value;
+		return left >= right.Value64;
 	}
 	public static Boolean operator >=(Int64 left, Counter right)
 	{
@@ -241,7 +241,7 @@ public struct Counter : IEquatable<Counter>, IComparable<Counter>
 	}
 	public static Boolean operator >=(Counter left, Int32 right)
 	{
-		return left.Value >= right;
+		return left.Value64 >= right;
 	}
 	public static Boolean operator >=(Counter left, Int64 right)
 	{

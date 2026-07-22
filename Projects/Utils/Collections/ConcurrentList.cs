@@ -196,10 +196,9 @@ public sealed class ConcurrentList<T> : IList<T>, IReadOnlyList<T>, IList, IEqua
 
 	public void Remove(Object? value)
 	{
+		// per the non-generic IList contract, removing an incompatible value is a no-op
 		if (value is T item)
 			Remove(item);
-		else
-			throw new InvalidCastException();
 	}
 
 	public Boolean RemoveIf(T value, Func<Boolean> conditionEvaluator)
@@ -274,10 +273,11 @@ public sealed class ConcurrentList<T> : IList<T>, IReadOnlyList<T>, IList, IEqua
 
 	public Boolean Contains(Object? value)
 	{
+		// per the non-generic IList contract, incompatible values are simply not contained
 		if (value is T item)
 			return Contains(item);
-		else
-			throw new InvalidCastException();
+
+		return false;
 	}
 
 	public Int32 IndexOf(T item)
@@ -289,10 +289,11 @@ public sealed class ConcurrentList<T> : IList<T>, IReadOnlyList<T>, IList, IEqua
 
 	public Int32 IndexOf(Object? value)
 	{
+		// per the non-generic IList contract, incompatible values are simply not found
 		if (value is T item)
 			return IndexOf(item);
-		else
-			throw new InvalidCastException();
+
+		return -1;
 	}
 
 	public void CopyTo(T[] array, Int32 arrayIndex)
@@ -365,9 +366,12 @@ public sealed class ConcurrentList<T> : IList<T>, IReadOnlyList<T>, IList, IEqua
 		{
 			get
 			{
+				if (_index == -2)
+					throw new ObjectDisposedException(nameof(ConcurrentListEnumerator));
+
 				using var locker = _owner._lock.CreateRLocker();
 
-				if (_index >= _owner._list.Count)
+				if (_index < 0 || _index >= _owner._list.Count)
 					throw new InvalidOperationException();
 
 				return _owner._list[_index];
@@ -467,7 +471,15 @@ public sealed class ConcurrentList<T> : IList<T>, IReadOnlyList<T>, IList, IEqua
 
 	public Boolean Equals(ConcurrentList<T>? list)
 	{
-		if (list == null || list.Count != Count)
+		if (list == null)
+			return false;
+
+		// comparing an instance to itself must not take the read lock twice
+		// (the lock is created with LockRecursionPolicy.NoRecursion)
+		if (ReferenceEquals(list, this))
+			return true;
+
+		if (list.Count != Count)
 			return false;
 
 		using var thisLocker = _lock.CreateRLocker();

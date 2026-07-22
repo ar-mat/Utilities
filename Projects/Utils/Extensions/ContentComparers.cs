@@ -5,32 +5,9 @@ namespace Armat.Utils.Extensions;
 
 public static class ContentComparer
 {
-	public static Boolean ContentsEquals<TKey, TValue>(this IDictionary<TKey, TValue> first, IDictionary<TKey, TValue> second)
-	{
-		return ContentsEquals(first, second, EqualityComparer<TValue>.Default);
-	}
-
-	public static Boolean ContentsEquals<TKey, TValue>(this IDictionary<TKey, TValue> first, IDictionary<TKey, TValue> second, IEqualityComparer<TValue> valueComparer)
-	{
-		if (first == second)
-			return true;
-		if (first.Count != second.Count)
-			return false;
-
-#pragma warning disable IDE0018 // Inline variable declaration
-		TValue? secondValue;
-#pragma warning restore IDE0018 // Inline variable declaration
-		foreach (KeyValuePair<TKey, TValue> kvp in first)
-		{
-			if (!second.TryGetValue(kvp.Key, out secondValue))
-				return false;
-			if (!valueComparer.Equals(kvp.Value, secondValue))
-				return false;
-		}
-
-		return true;
-	}
-
+	// note: dictionary comparison overloads are provided for IReadOnlyDictionary only;
+	// an IDictionary counterpart would make calls with Dictionary<K, V> arguments ambiguous (CS0121)
+	// since Dictionary implements both interfaces
 	public static Boolean ContentsEquals<TKey, TValue>(this IReadOnlyDictionary<TKey, TValue> first, IReadOnlyDictionary<TKey, TValue> second)
 	{
 		return ContentsEquals(first, second, EqualityComparer<TValue>.Default);

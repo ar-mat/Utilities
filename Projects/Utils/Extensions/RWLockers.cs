@@ -19,6 +19,8 @@ public static class RWLockers
 	}
 }
 
+// enters the read lock upon construction and exits it upon disposal
+// note: this is a mutable struct intended for `using` scopes only - do not copy instances
 public struct RLockerSlim : IDisposable
 {
 	public RLockerSlim(ReaderWriterLockSlim? rwLock)
@@ -40,6 +42,8 @@ public struct RLockerSlim : IDisposable
 	public ReaderWriterLockSlim? Lock { get; private set; }
 }
 
+// enters the upgradeable read lock upon construction and exits it upon disposal
+// note: this is a mutable struct intended for `using` scopes only - do not copy instances
 public struct URLockerSlim : IDisposable
 {
 	public URLockerSlim(ReaderWriterLockSlim? rwLock)
@@ -61,6 +65,8 @@ public struct URLockerSlim : IDisposable
 	public ReaderWriterLockSlim? Lock { get; private set; }
 }
 
+// enters the write lock upon construction and exits it upon disposal
+// note: this is a mutable struct intended for `using` scopes only - do not copy instances
 public struct WLockerSlim : IDisposable
 {
 	public WLockerSlim(ReaderWriterLockSlim? rwLock)

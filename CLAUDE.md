@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-Armat.Utils (`armat.utils` on NuGet) — a .NET 8.0 C# utility library: thread-safe counters, specialized collections, serialization helpers, and extension methods. Two projects: `Projects/Utils` (the library) and `Projects/UtilsTest` (xUnit tests).
+Armat.Utils (`armat.utils` on NuGet) — a .NET 10.0 C# utility library: thread-safe counters, specialized collections, serialization helpers, and extension methods. Two projects: `Projects/Utils` (the library) and `Projects/UtilsTest` (xUnit tests).
 
 ## Commands
 

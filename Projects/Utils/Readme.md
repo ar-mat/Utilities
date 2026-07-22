@@ -3,7 +3,7 @@
 [![NuGet](https://img.shields.io/nuget/v/armat.utils.svg)](https://www.nuget.org/packages/armat.utils/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE.txt)
 
-**Armat.Utils** is a comprehensive .NET 8.0 library providing reusable utilities for building robust .NET applications. It includes thread-safe counters, specialized collections, serialization helpers, and useful extension methods.
+**Armat.Utils** is a comprehensive .NET 10.0 library providing reusable utilities for building robust .NET applications. It includes thread-safe counters, specialized collections, serialization helpers, and useful extension methods.
 
 ## Installation
 
@@ -58,6 +58,8 @@ Simplified serialization utilities:
 - **`XmlSerializer`** - Static helper class for XML serialization / deserialization. Supports serialization to string, file, stream, `XmlDocument` and `XmlElement`, and deserialization from appropriate constructs.
 
 - **`XmlFileElementReference`** - Utility for reading / writing specific XML elements within a file at a given XPath. Useful for targeted XML element manipulation without loading entire documents.
+
+> ⚠️ **Security note**: `JsonSerializer` / `XmlSerializer` embed type information in the payload and instantiate the type named there during deserialization. Never deserialize untrusted input with the default type locator — pass an allow-listing `ITypeLocator` to restrict the set of permitted types.
 
 ### 🔧 Extensions (`Armat.Utils.Extensions`)
 
@@ -140,7 +142,7 @@ using (rwLock.CreateWLocker()) {
 
 ## Requirements
 
-- .NET 8.0 or later
+- .NET 10.0 or later
 
 ## License
 
@@ -152,11 +154,28 @@ This project is licensed under the MIT License - see the [LICENSE.txt](LICENSE.t
 - [Project Website](http://armat.am/products/utilities)
 - [GitHub Repository](https://github.com/ar-mat/Utilities)
 - [NuGet Package](https://www.nuget.org/packages/armat.utils/)
+- [Release Notes](https://github.com/ar-mat/Utilities/blob/main/ReleaseNotes.md)
 
 ## Version History
 
+Per-release details are maintained in `ReleaseNotes.md` — shipped inside this package and
+available at [github.com/ar-mat/Utilities/blob/main/ReleaseNotes.md](https://github.com/ar-mat/Utilities/blob/main/ReleaseNotes.md).
+
+### Version 3.0.0
+Bug-fix release with breaking API cleanups; retargeted to .NET 10.0 (from .NET 8.0):
+- Retargeted to .NET 10.0 — projects on .NET 8/9 can no longer reference this package version
+- Fixed inverted `Counter` inequality operator and truncating `Int32` comparisons
+- Fixed `IndexedList` index APIs returning internal storage indexes (`IndexOfValue`, `IndexOfItem`, `IIndex.Remove(KeyValuePair)`, `ListDictionary.Remove/IndexOf` by value)
+- Fixed unique index corruption on rejected duplicate-key updates
+- `JsonSerializer.ToFile` now truncates existing files; `XmlFileElementReference.SaveXmlElement` create path fixed
+- Duplicate index keys now surface as `ArgumentException` (previously `OperationCanceledException`)
+- `ContentsEquals` dictionary overloads are `IReadOnlyDictionary`-only (`IDictionary` overloads removed as ambiguous)
+- `ListDictionary` key-based removal renamed to `RemoveByKey`; `Values` returns a read-only view
+- `IndexedList` / `ListDictionary` now implement `IDisposable` (synchronized mode) instead of a finalizer
+- `ReIndex` is now non-generic; the unused-type-parameter overloads were removed
+
 ### Version 2.0.1
-Current release targeting .NET 8.0
+Release targeting .NET 8.0
 
 ---
 

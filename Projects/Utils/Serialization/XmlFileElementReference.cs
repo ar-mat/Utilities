@@ -1,14 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System;
 using System.Xml;
 
 namespace Armat.Serialization;
 
-// This is a simple utility class to read and write and XML element
-// within a given file path and at a given XML elemnt path
+// This is a simple utility class to read and write an XML element
+// within a given file path and at a given XML element path
 public class XmlFileElementReference
 {
 	public XmlFileElementReference(String filePath, String elementPath)
@@ -48,11 +44,11 @@ public class XmlFileElementReference
 	public XmlElement? LoadXmlElement()
 	{
 		// check if the file exists
-        if (!System.IO.File.Exists(FilePath))
+		if (!System.IO.File.Exists(FilePath))
 			return null;
 
-        // load the document
-        XmlDocument xmlDoc = new();
+		// load the document
+		XmlDocument xmlDoc = new();
 		xmlDoc.Load(FilePath);
 
 		// find the referenced element
@@ -70,59 +66,67 @@ public class XmlFileElementReference
 		if (System.IO.File.Exists(FilePath))
 			xmlDoc.Load(FilePath);
 
-		// find / create the parent element to add the given one below
-		XmlElement? xmlElementParent = null;
+		// path levels; ignore empty entries caused by a leading '/'
+		String[] xmlLevels = ElementPath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+		if (xmlLevels.Length == 0)
+			throw new FormatException("ElementPath is empty");
+
+		// check whether the given element name matches the last XPath level
+		if (xmlElement != null && xmlElement.Name != xmlLevels[^1])
+			throw new FormatException("Xml Element name does not match the XPath");
+
 		Boolean isDocChanged = false;
 
-		// try to find the element in the loaded document
+		// remove the existing element if found
 		XmlNode? xmlElementCurrent = xmlDoc.SelectSingleNode(ElementPath);
-		if (xmlElementCurrent != null)
+		if (xmlElementCurrent != null && xmlElementCurrent.ParentNode != null)
 		{
-			// check whether the given element name matches the found one
-			if (xmlElement != null && xmlElement.Name != xmlElementCurrent.Name)
-				throw new FormatException("Xml Element name does not match the XPath");
-
-			// remove the current element
-			xmlElementParent = (XmlElement?)xmlElementCurrent.ParentNode;
-			if (xmlElementParent != null)
-			{
-				xmlElementParent.RemoveChild(xmlElementCurrent);
-				isDocChanged = true;
-			}
+			xmlElementCurrent.ParentNode.RemoveChild(xmlElementCurrent);
+			isDocChanged = true;
 		}
 
-		// create the element, it's not found
-		if (xmlElementParent == null)
-		{
-			xmlElementParent = xmlDoc.DocumentElement!;
-			String[] xmlLevels = ElementPath.Split('/');
-
-			// check whether the given element name matches the xpath
-			if (xmlElement != null && xmlElement.Name != xmlLevels[xmlLevels.Length])
-				throw new FormatException("Xml Element name does not match the XPath");
-
-			for (Int32 level = 0; level < xmlLevels.Length - 1; level++)
-			{
-				// find next level element
-				String levelElementName = xmlLevels[level];
-				xmlElementCurrent = xmlElementParent.SelectSingleNode(levelElementName);
-
-				// create if not found
-				if (xmlElementCurrent == null)
-				{
-					xmlElementCurrent = xmlDoc.CreateElement(levelElementName);
-					xmlElementParent.AppendChild(xmlElementCurrent);
-					isDocChanged = true;
-				}
-
-				// move to the new level
-				xmlElementParent = (XmlElement)xmlElementCurrent;
-			}
-		}
-
-		// include the given element under the parent one
 		if (xmlElement != null)
 		{
+			// find / create the parent node to attach the element to
+			XmlNode xmlElementParent;
+
+			if (xmlLevels.Length == 1)
+			{
+				// the element is the document root
+				xmlElementParent = xmlDoc;
+			}
+			else
+			{
+				// ensure the root element exists and matches the first path level
+				XmlElement? xmlCursor = xmlDoc.DocumentElement;
+				if (xmlCursor == null)
+				{
+					xmlCursor = xmlDoc.CreateElement(xmlLevels[0]);
+					xmlDoc.AppendChild(xmlCursor);
+					isDocChanged = true;
+				}
+				else if (xmlCursor.Name != xmlLevels[0])
+				{
+					throw new FormatException("Xml document root does not match the XPath");
+				}
+
+				// walk / create intermediate levels (excluding the root and the element itself)
+				for (Int32 level = 1; level < xmlLevels.Length - 1; level++)
+				{
+					XmlNode? xmlNext = xmlCursor.SelectSingleNode(xmlLevels[level]);
+					if (xmlNext == null)
+					{
+						xmlNext = xmlDoc.CreateElement(xmlLevels[level]);
+						xmlCursor.AppendChild(xmlNext);
+						isDocChanged = true;
+					}
+					xmlCursor = (XmlElement)xmlNext;
+				}
+
+				xmlElementParent = xmlCursor;
+			}
+
+			// include the given element under the parent one
 			xmlElement = (XmlElement)xmlDoc.ImportNode(xmlElement, true);
 			xmlElementParent.AppendChild(xmlElement);
 			isDocChanged = true;

@@ -24,12 +24,26 @@ public abstract class DictionaryIndex<TIndexType, T> : IndexBase<TIndexType, T>
 
 	protected IDictionary<TIndexType, Int32> _indexMap;
 
+	// cached key / value views; they wrap the current _indexMap instance
+	// and must be reset whenever _indexMap is replaced
+	private KeyCollection? _keysCollection;
+	private ValueCollection? _valuesCollection;
+
 	#endregion // Properties
 
 	#region IIndex implementation
 
 	protected abstract IDictionary<TIndexType, Int32> CreateIndexMap();
 	protected abstract void EnsureIndexMapCapacity(IDictionary<TIndexType, Int32> map, Int32 capacity);
+
+	protected override void OnInitialized()
+	{
+		base.OnInitialized();
+
+		// drop views cached before initialization - they wrap the placeholder data accessor
+		_keysCollection = null;
+		_valuesCollection = null;
+	}
 
 	protected override void CopyFrom(IndexBase<TIndexType, T> sourceIndex)
 	{
@@ -68,16 +82,20 @@ public abstract class DictionaryIndex<TIndexType, T> : IndexBase<TIndexType, T>
 
 		// update index in this index
 		_indexMap = newIndex;
+
+		// the cached key / value views wrap the replaced map instance - reset them
+		_keysCollection = null;
+		_valuesCollection = null;
 	}
 
 	public override ICollection<TIndexType> Keys
 	{
-		get => new KeyCollection(Data, _indexMap, Owner.ValueComparer);
+		get => _keysCollection ??= new KeyCollection(Data, _indexMap, Owner.ValueComparer);
 	}
 
 	public override ICollection<T> Values
 	{
-		get => new ValueCollection(Data, _indexMap, Owner.ValueComparer);
+		get => _valuesCollection ??= new ValueCollection(Data, _indexMap, Owner.ValueComparer);
 	}
 
 	public override IEnumerator<KeyValuePair<TIndexType, T>> GetEnumerator()
@@ -98,7 +116,7 @@ public abstract class DictionaryIndex<TIndexType, T> : IndexBase<TIndexType, T>
 
 	#region IListChangeHandler implementation
 
-	public override Object? OnBeginInsertValue(Int32 index, T value)
+	protected override Object? OnBeginInsertValue(Int32 index, T value)
 	{
 		// add the value
 		TIndexType key = IndexReader.GetIndexValue(value);
@@ -107,36 +125,36 @@ public abstract class DictionaryIndex<TIndexType, T> : IndexBase<TIndexType, T>
 		return key;
 	}
 
-	public override void OnCommitInsertValue(Int32 index, T value, Object? state)
+	protected override void OnCommitInsertValue(Int32 index, T value, Object? state)
 	{
 		// nothing to do
 	}
 
-	public override void OnRollbackInsertValue(Int32 index, T value, Object? state)
+	protected override void OnRollbackInsertValue(Int32 index, T value, Object? state)
 	{
 		// remove the added key
 		_indexMap.Remove((TIndexType)state!);
 	}
 
-	public override Object? OnBeginRemoveValue(Int32 index, T prevValue)
+	protected override Object? OnBeginRemoveValue(Int32 index, T prevValue)
+	{
+		// compute the key up front: the user-provided IndexReader may throw,
+		// and Begin is the only phase where a failure can safely cancel the operation
+		return IndexReader.GetIndexValue(prevValue);
+	}
+
+	protected override void OnCommitRemoveValue(Int32 index, T prevValue, Object? state)
+	{
+		// remove it using the key captured at Begin (commit must never fail)
+		_indexMap.Remove((TIndexType)state!);
+	}
+
+	protected override void OnRollbackRemoveValue(Int32 index, T prevValue, Object? state)
 	{
 		// nothing to do
-		return null;
 	}
 
-	public override void OnCommitRemoveValue(Int32 index, T prevValue, Object? state)
-	{
-		// remove it
-		TIndexType key = IndexReader.GetIndexValue(prevValue);
-		_indexMap.Remove(key);
-	}
-
-	public override void OnRollbackRemoveValue(Int32 index, T prevValue, Object? state)
-	{
-		// nothing to do
-	}
-
-	public override Object? OnBeginSetValue(Int32 index, T value, T prevValue)
+	protected override Object? OnBeginSetValue(Int32 index, T value, T prevValue)
 	{
 		// set the new key
 		TIndexType key = IndexReader.GetIndexValue(value);
@@ -145,6 +163,11 @@ public abstract class DictionaryIndex<TIndexType, T> : IndexBase<TIndexType, T>
 		Int32 prevIndex = -1;
 		if (!KeyComparer.Equals(prevKey, key))
 		{
+			// validate BEFORE mutating - a duplicate key must not leave the index half-updated
+			// (a Begin failure never triggers a rollback of the very handler that failed)
+			if (_indexMap.ContainsKey(key))
+				throw new ArgumentException($"An item with the same key already exists in index '{Id}'", nameof(value));
+
 			if (_indexMap.TryGetValue(prevKey, out prevIndex))
 				_indexMap.Remove(prevKey);
 			_indexMap.Add(key, index);
@@ -153,12 +176,12 @@ public abstract class DictionaryIndex<TIndexType, T> : IndexBase<TIndexType, T>
 		return new Tuple<TIndexType, TIndexType, Int32>(key, prevKey, prevIndex);
 	}
 
-	public override void OnCommitSetValue(Int32 index, T value, T prevValue, Object? state)
+	protected override void OnCommitSetValue(Int32 index, T value, T prevValue, Object? state)
 	{
 		// nothing to do
 	}
 
-	public override void OnRollbackSetValue(Int32 index, T value, T prevValue, Object? state)
+	protected override void OnRollbackSetValue(Int32 index, T value, T prevValue, Object? state)
 	{
 		Tuple<TIndexType, TIndexType, Int32> data = (Tuple<TIndexType, TIndexType, Int32>)state!;
 
@@ -175,18 +198,18 @@ public abstract class DictionaryIndex<TIndexType, T> : IndexBase<TIndexType, T>
 		}
 	}
 
-	public override Object? OnBeginClear(Int32 count)
+	protected override Object? OnBeginClear(Int32 count)
 	{
 		// nothing to do
 		return null;
 	}
 
-	public override void OnCommitClear(Int32 count, Object? state)
+	protected override void OnCommitClear(Int32 count, Object? state)
 	{
 		_indexMap.Clear();
 	}
 
-	public override void OnRollbackClear(Int32 count, Object? state)
+	protected override void OnRollbackClear(Int32 count, Object? state)
 	{
 		// nothing to do
 	}
@@ -198,6 +221,12 @@ public class HashIndex<TIndexType, T> : DictionaryIndex<TIndexType, T>
 	where T : notnull
 	where TIndexType : notnull
 {
+	// parameterless constructor is required for Type based index creation via IndexedList.CreateIndex
+	public HashIndex()
+		: this(null)
+	{
+	}
+
 	public HashIndex(IEqualityComparer<TIndexType>? keyComparer)
 		: base(new Dictionary<TIndexType, Int32>(keyComparer), keyComparer)
 	{
@@ -224,6 +253,12 @@ public class TreeIndex<TIndexType, T> : DictionaryIndex<TIndexType, T>
 	where TIndexType : notnull
 {
 	private readonly IComparer<TIndexType> _comparer;
+
+	// parameterless constructor is required for Type based index creation via IndexedList.CreateIndex
+	public TreeIndex()
+		: this(null)
+	{
+	}
 
 	public TreeIndex(IComparer<TIndexType>? comparer = null)
 		: base(new SortedDictionary<TIndexType, Int32>(comparer),

@@ -1,7 +1,5 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.Serialization;
 
 namespace Armat.Serialization;
 
@@ -28,36 +26,42 @@ public static class SerializationExtensions
 	}
 	public static IPackage[] PackAll(this IEnumerable<IPackable> packables)
 	{
-		IPackage[] packages = new IPackage[packables.Count()];
+		// enumerate the source exactly once - it may not be repeatable
+		List<IPackage> packages = packables is ICollection<IPackable> collection
+			? new List<IPackage>(collection.Count)
+			: new List<IPackage>();
 
-		Int32 index = 0;
 		foreach (IPackable element in packables)
-			packages[index++] = element.Pack();
+			packages.Add(element.Pack());
 
-		return packages;
+		return packages.ToArray();
 	}
 	public static IPackage[] PackAll<TPackable>(this IEnumerable<TPackable> packables)
 		where TPackable : IPackable
 	{
-		IPackage[] packages = new IPackage[packables.Count()];
+		// enumerate the source exactly once - it may not be repeatable
+		List<IPackage> packages = packables is ICollection<TPackable> collection
+			? new List<IPackage>(collection.Count)
+			: new List<IPackage>();
 
-		Int32 index = 0;
 		foreach (TPackable element in packables)
-			packages[index++] = element.Pack();
+			packages.Add(element.Pack());
 
-		return packages;
+		return packages.ToArray();
 	}
 	public static TPackage[] PackAll<TPackable, TPackage>(this IEnumerable<TPackable> packables)
 		where TPackable : IPackable
 		where TPackage : IPackage
 	{
-		TPackage[] packages = new TPackage[packables.Count()];
+		// enumerate the source exactly once - it may not be repeatable
+		List<TPackage> packages = packables is ICollection<TPackable> collection
+			? new List<TPackage>(collection.Count)
+			: new List<TPackage>();
 
-		Int32 index = 0;
-		foreach (IPackable element in packables)
-			packages[index++] = element.Pack<TPackage>();
+		foreach (TPackable element in packables)
+			packages.Add(element.Pack<TPackage>());
 
-		return packages;
+		return packages.ToArray();
 	}
 
 	public static TPackable Unpack<TPackable>(this IPackage package)
@@ -67,35 +71,41 @@ public static class SerializationExtensions
 	}
 	public static IPackable[] UnpackAll(this IEnumerable<IPackage> packages)
 	{
-		IPackable[] packables = new IPackable[packages.Count()];
+		// enumerate the source exactly once - it may not be repeatable
+		List<IPackable> packables = packages is ICollection<IPackage> collection
+			? new List<IPackable>(collection.Count)
+			: new List<IPackable>();
 
-		Int32 index = 0;
 		foreach (IPackage package in packages)
-			packables[index++] = package.Unpack();
+			packables.Add(package.Unpack());
 
-		return packables;
+		return packables.ToArray();
 	}
 	public static TPackable[] UnpackAll<TPackable>(this IEnumerable<IPackage> packages)
 		where TPackable : IPackable
 	{
-		TPackable[] packables = new TPackable[packages.Count()];
+		// enumerate the source exactly once - it may not be repeatable
+		List<TPackable> packables = packages is ICollection<IPackage> collection
+			? new List<TPackable>(collection.Count)
+			: new List<TPackable>();
 
-		Int32 index = 0;
 		foreach (IPackage package in packages)
-			packables[index++] = package.Unpack<TPackable>();
+			packables.Add(package.Unpack<TPackable>());
 
-		return packables;
+		return packables.ToArray();
 	}
 	public static TPackable[] UnpackAll<TPackage, TPackable>(this IEnumerable<TPackage> packages)
 		where TPackage : IPackage
 		where TPackable : IPackable
 	{
-		TPackable[] packables = new TPackable[packages.Count()];
+		// enumerate the source exactly once - it may not be repeatable
+		List<TPackable> packables = packages is ICollection<TPackage> collection
+			? new List<TPackable>(collection.Count)
+			: new List<TPackable>();
 
-		Int32 index = 0;
 		foreach (TPackage package in packages)
-			packables[index++] = package.Unpack<TPackable>();
+			packables.Add(package.Unpack<TPackable>());
 
-		return packables;
+		return packables.ToArray();
 	}
 }

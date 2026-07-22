@@ -224,7 +224,7 @@ public class IndexedListUnitTest_Simple
 		// 1, 2, 4, 8, 1000_1, 1000_2, 1000_1000_1, 1000_1000_2, 1000_1000_4, 1000_1000_8, 1000_4, 1000_8
 
 		Assert.True(list.GetHashCode() == listOrig.GetHashCode());
-		Assert.True(String.Equals(strOriginal, strAfterRemove));
+		Assert.True(strOriginal == strAfterRemove);
 		Assert.True(list.Equals(listOrig));
 	}
 

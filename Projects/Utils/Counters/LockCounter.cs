@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Threading;
 
-using static Armat.Utils.Counter;
-
 #pragma warning disable IDE0130 // Namespace does not match folder structure
 namespace Armat.Utils;
 #pragma warning restore IDE0130 // Namespace does not match folder structure
@@ -135,6 +133,8 @@ public class LockCounter
 	public event EventHandler? Unlocked;
 }
 
+// locks the counter upon construction and unlocks it upon disposal
+// note: this is a mutable struct intended for `using` scopes only - do not copy instances
 public struct LockCounterLocker : IDisposable
 {
 	public LockCounterLocker(LockCounter counter)
@@ -144,11 +144,9 @@ public struct LockCounterLocker : IDisposable
 	}
 	public void Dispose()
 	{
-		Int32 wasDisposed = Interlocked.Exchange(ref _disposed, 1);
-		if (wasDisposed != 0)
-			throw new ObjectDisposedException(nameof(LockCounterLocker));
-
-		Counter.Unlock();
+		// Dispose must be idempotent: only the first call releases the lock
+		if (Interlocked.Exchange(ref _disposed, 1) == 0)
+			Counter.Unlock();
 	}
 
 	public LockCounter Counter { get; private set; }

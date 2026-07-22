@@ -6,6 +6,10 @@ public static class ByteArray
 {
 	public static Boolean ContentsEquals(this Byte[] current, Byte[] other)
 	{
+		// arrays of different lengths are never equal
+		if (current.Length != other.Length)
+			return false;
+
 		return ContentsEquals(current, 0, other, 0, current.Length);
 	}
 
@@ -21,32 +25,7 @@ public static class ByteArray
 			return false;
 
 		// check if buffers match
-		Int32 tailIdx = length - length % sizeof(Int64);
-		Boolean result = true;
-
-		// check in 8 byte chunks
-		for (Int32 i = 0; i < tailIdx; i += sizeof(Int64))
-		{
-			if (BitConverter.ToInt64(current, thisIndex + i) != BitConverter.ToInt64(other, otherIndex + i))
-			{
-				result = false;
-				break;
-			}
-		}
-		if (!result)
-			return false;
-
-		// check the remainder of the array, always shorter than 8 bytes
-		for (Int32 i = tailIdx; i < length; i++)
-		{
-			if (current[thisIndex + i] != other[otherIndex + i])
-			{
-				result = false;
-				break;
-			}
-		}
-
-		return result;
+		return current.AsSpan(thisIndex, length).SequenceEqual(other.AsSpan(otherIndex, length));
 	}
 
 	public static void ContentsCopy(this Byte[] current, Byte[] other)
@@ -65,24 +44,8 @@ public static class ByteArray
 		if (length < 0 || current.Length < thisIndex + length || other.Length < otherIndex + length)
 			throw new ArgumentOutOfRangeException(nameof(length));
 
-		// check if buffers match
-		Int32 tailIdx = length - length % sizeof(Int64);
-
-		// check in 8 byte chunks
-		for (Int32 i = 0; i < tailIdx; i += sizeof(Int64))
-		{
-			Int64 block = BitConverter.ToInt64(other, otherIndex + i);
-
-			Span<Byte> span = new(current, thisIndex + i, sizeof(Int64));
-			BitConverter.TryWriteBytes(span, block);
-		}
-
-		// check the remainder of the array, always shorter than 8 bytes
-		for (Int32 i = tailIdx; i < length; i++)
-		{
-			Byte block = other[otherIndex + i];
-			current[thisIndex + i] = block;
-		}
+		// copy the contents in a single block operation
+		Array.Copy(other, otherIndex, current, thisIndex, length);
 	}
 
 	public static void ContentsAnd(this Byte[] current, Byte[] other)

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading;
 
 namespace Armat.Utils;
@@ -6,6 +6,9 @@ namespace Armat.Utils;
 // Provides means to control / defer action invocation to a later time - once the counter is unlocked
 public class ControlledActionInvoker : LockCounter
 {
+	// 0 = no pending invocation, 1 = pending invocation; accessed with Interlocked only
+	private Int32 _pendingInvocation;
+
 	public ControlledActionInvoker(Action action)
 		: this(action, true)
 	{
@@ -23,32 +26,43 @@ public class ControlledActionInvoker : LockCounter
 	public Boolean InvokesPendingActionOnUnlock { get; private set; }
 
 	// checks whether there are action invocations while the Counter was locked
-	public Boolean HasPendingInvocation { get; private set; }
+	public Boolean HasPendingInvocation
+	{
+		get { return Interlocked.CompareExchange(ref _pendingInvocation, 0, 0) != 0; }
+	}
 
 	// invokes an action if the counter is not locked
-	// otherwise sets the HasPendingInvocation = true indicating that the an action invocation has been blocked
+	// otherwise sets the HasPendingInvocation = true indicating that an action invocation has been blocked
 	// This method should be called manually after unlocking the counter if InvokesPendingActionOnUnlock = false
 	public void Invoke()
 	{
-		if (IsLocked)
+		if (IsUnlocked)
 		{
-			HasPendingInvocation = true;
+			Interlocked.Exchange(ref _pendingInvocation, 0);
+			Action();
+			return;
 		}
-		else
+
+		// the counter is locked - defer the invocation
+		Interlocked.Exchange(ref _pendingInvocation, 1);
+
+		// re-check: the counter may have been unlocked between the IsUnlocked check and
+		// the flag assignment above; consume the flag atomically so the action runs exactly once
+		if (IsUnlocked && InvokesPendingActionOnUnlock &&
+			Interlocked.Exchange(ref _pendingInvocation, 0) == 1)
 		{
-			HasPendingInvocation = false;
 			Action();
 		}
 	}
 
-	// overridden to invoke pending actions once teh Counter is unlocked
+	// overridden to invoke pending actions once the Counter is unlocked
 	protected override void OnUnlocked()
 	{
 		base.OnUnlocked();
 
-		if (InvokesPendingActionOnUnlock && HasPendingInvocation)
+		if (InvokesPendingActionOnUnlock &&
+			Interlocked.Exchange(ref _pendingInvocation, 0) == 1)
 		{
-			HasPendingInvocation = false;
 			Action();
 		}
 	}

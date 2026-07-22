@@ -3,15 +3,15 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 
 namespace Armat.Collections;
 
-public class ListDictionary<TKey, TValue> : IList<TValue>, IReadOnlyList<TValue>, 
-	IDictionary<TKey, TValue>, IReadOnlyDictionary<TKey, TValue>, 
-	IListChangeEmitter<TValue>, INotifyCollectionChanged
+public class ListDictionary<TKey, TValue> : IList<TValue>, IReadOnlyList<TValue>,
+	IDictionary<TKey, TValue>, IReadOnlyDictionary<TKey, TValue>,
+	IListChangeEmitter<TValue>, INotifyCollectionChanged, IDisposable
 	where TKey : notnull
 	where TValue : notnull
 {
@@ -73,6 +73,12 @@ public class ListDictionary<TKey, TValue> : IList<TValue>, IReadOnlyList<TValue>
 		_list.RegisterChangeHandler(new ListChangeHandler(this));
 	}
 
+	// disposes the underlying synchronized list's lock (no-op for unsynchronized instances)
+	public void Dispose()
+	{
+		_list.Dispose();
+	}
+
 	#endregion // Constructors
 
 	#region Thread safety
@@ -113,17 +119,30 @@ public class ListDictionary<TKey, TValue> : IList<TValue>, IReadOnlyList<TValue>
 
 	public void Reindex()
 	{
-		_list.ReIndex<TKey>(_index.Id);
+		_list.ReIndex(_index.Id);
 	}
 
 	#endregion // Own API
 
 	#region IList, IDictionary implementation
 
+	// note: for ListDictionary<Int32, TValue> instantiations this positional indexer
+	// unifies with this[TKey key] and becomes ambiguous at call sites - use GetAt / SetAt there
 	public TValue this[Int32 index]
 	{
 		get { return _list[index]; }
 		set { _list[index] = value; }
+	}
+
+	// positional accessors that never collide with the TKey indexer
+	public TValue GetAt(Int32 index)
+	{
+		return _list[index];
+	}
+
+	public void SetAt(Int32 index, TValue value)
+	{
+		_list[index] = value;
 	}
 
 	public TValue this[TKey key]
@@ -147,7 +166,9 @@ public class ListDictionary<TKey, TValue> : IList<TValue>, IReadOnlyList<TValue>
 
 	public ICollection<TKey> Keys => _index.Keys;
 
-	public ICollection<TValue> Values => _list;
+	// a read-only view: handing out the internal list would allow
+	// mutating the dictionary bypassing key consistency checks
+	public ICollection<TValue> Values => new ReadOnlyCollection<TValue>(_list);
 
 	IEnumerable<TKey> IReadOnlyDictionary<TKey, TValue>.Keys => _index.Keys;
 
@@ -245,7 +266,7 @@ public class ListDictionary<TKey, TValue> : IList<TValue>, IReadOnlyList<TValue>
 		return true;
 	}
 
-	public Boolean Remove(TKey key)
+	public Boolean RemoveByKey(TKey key)
 	{
 		Int32 index = IndexOfKey(key);
 		if (index == -1)
@@ -253,6 +274,13 @@ public class ListDictionary<TKey, TValue> : IList<TValue>, IReadOnlyList<TValue>
 
 		RemoveAt(index);
 		return true;
+	}
+
+	// explicit implementation: the public key-based removal is named RemoveByKey to avoid
+	// colliding with Remove(TValue) in TKey == TValue instantiations
+	Boolean IDictionary<TKey, TValue>.Remove(TKey key)
+	{
+		return RemoveByKey(key);
 	}
 
 	public void RemoveAt(Int32 index)

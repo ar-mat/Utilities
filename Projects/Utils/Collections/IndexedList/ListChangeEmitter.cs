@@ -97,9 +97,10 @@ public class StandardListChangeEmitter<T> : IListChangeHandler<T>
 				result = _listChangeHandlers[0].OnBeginInsertValue(index, value);
 			}
 		}
-		catch (Exception exc)
+		catch
 		{
 			// roll back the ones that have succeeded
+			// (a handler whose Begin failed must leave no partial state behind by itself)
 			if (chCount > 1)
 			{
 				for (chIndex--; chIndex >= 0; chIndex--)
@@ -108,18 +109,9 @@ public class StandardListChangeEmitter<T> : IListChangeHandler<T>
 					catch { }
 				}
 			}
-			// There's nothing to roll back if the only begin has failed
-			//else
-			//{
-			//	try { _listChangeHandlers[0].OnRollbackInsertValue(index, value, result); }
-			//	catch { }
-			//}
 
-			// ensure not to wrap the OperationCanceledException in another one
-			if (exc is OperationCanceledException)
-				throw;
-
-			throw new OperationCanceledException("Insertion of value has been canceled", exc);
+			// rethrow the original exception (e.g. ArgumentException for a duplicate index key)
+			throw;
 		}
 
 		return result;
@@ -203,9 +195,10 @@ public class StandardListChangeEmitter<T> : IListChangeHandler<T>
 				result = _listChangeHandlers[0].OnBeginRemoveValue(index, prevValue);
 			}
 		}
-		catch (Exception exc)
+		catch
 		{
 			// roll back the ones that have succeeded
+			// (a handler whose Begin failed must leave no partial state behind by itself)
 			if (chCount > 1)
 			{
 				for (chIndex--; chIndex >= 0; chIndex--)
@@ -214,18 +207,9 @@ public class StandardListChangeEmitter<T> : IListChangeHandler<T>
 					catch { }
 				}
 			}
-			// There's nothing to roll back if the only begin has failed
-			//else
-			//{
-			//	try { _listChangeHandlers[0].OnRollbackRemoveValue(index, prevValue, result); }
-			//	catch { }
-			//}
 
-			// ensure not to wrap the OperationCanceledException in another one
-			if (exc is OperationCanceledException)
-				throw;
-
-			throw new OperationCanceledException("Removal of value has been canceled", exc);
+			// rethrow the original exception
+			throw;
 		}
 
 		return result;
@@ -309,9 +293,10 @@ public class StandardListChangeEmitter<T> : IListChangeHandler<T>
 				result = _listChangeHandlers[0].OnBeginSetValue(index, value, prevValue);
 			}
 		}
-		catch (Exception exc)
+		catch
 		{
 			// roll back the ones that have succeeded
+			// (a handler whose Begin failed must leave no partial state behind by itself)
 			if (chCount > 1)
 			{
 				for (chIndex--; chIndex >= 0; chIndex--)
@@ -320,18 +305,9 @@ public class StandardListChangeEmitter<T> : IListChangeHandler<T>
 					catch { }
 				}
 			}
-			// There's nothing to roll back if the only begin has failed
-			//else
-			//{
-			//	try { _listChangeHandlers[0].OnRollbackSetValue(index, value, prevValue, result); }
-			//	catch { }
-			//}
 
-			// ensure not to wrap the OperationCanceledException in another one
-			if (exc is OperationCanceledException)
-				throw;
-
-			throw new OperationCanceledException("Setting of value has been canceled", exc);
+			// rethrow the original exception (e.g. ArgumentException for a duplicate index key)
+			throw;
 		}
 
 		return result;
@@ -415,9 +391,10 @@ public class StandardListChangeEmitter<T> : IListChangeHandler<T>
 				result = _listChangeHandlers[0].OnBeginMoveValue(indexNew, indexPrev, value);
 			}
 		}
-		catch (Exception exc)
+		catch
 		{
 			// roll back the ones that have succeeded
+			// (a handler whose Begin failed must leave no partial state behind by itself)
 			if (chCount > 1)
 			{
 				for (chIndex--; chIndex >= 0; chIndex--)
@@ -426,18 +403,9 @@ public class StandardListChangeEmitter<T> : IListChangeHandler<T>
 					catch { }
 				}
 			}
-			// There's nothing to roll back if the only begin has failed
-			//else
-			//{
-			//	try { _listChangeHandlers[0].OnRollbackSetValue(index, value, prevValue, result); }
-			//	catch { }
-			//}
 
-			// ensure not to wrap the OperationCanceledException in another one
-			if (exc is OperationCanceledException)
-				throw;
-
-			throw new OperationCanceledException("Setting of value has been canceled", exc);
+			// rethrow the original exception
+			throw;
 		}
 
 		return result;
@@ -521,9 +489,10 @@ public class StandardListChangeEmitter<T> : IListChangeHandler<T>
 				result = _listChangeHandlers[0].OnBeginClear(count);
 			}
 		}
-		catch (Exception exc)
+		catch
 		{
 			// roll back the ones that have succeeded
+			// (a handler whose Begin failed must leave no partial state behind by itself)
 			if (chCount > 1)
 			{
 				for (chIndex--; chIndex >= 0; chIndex--)
@@ -532,18 +501,9 @@ public class StandardListChangeEmitter<T> : IListChangeHandler<T>
 					catch { }
 				}
 			}
-			// There's nothing to roll back if the only begin has failed
-			//else
-			//{
-			//	try { _listChangeHandlers[0].OnRollbackClear(result); }
-			//	catch { }
-			//}
 
-			// ensure not to wrap the OperationCanceledException in another one
-			if (exc is OperationCanceledException)
-				throw;
-
-			throw new OperationCanceledException("Clearing of list has been canceled", exc);
+			// rethrow the original exception
+			throw;
 		}
 
 		return result;

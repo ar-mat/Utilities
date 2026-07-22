@@ -29,7 +29,7 @@ public enum ExceptionLookupMode
 	// if there are multiple ones with different types, it won't find anything
 	LastIfAllSameType,
 
-	Default = TheOnlyOne
+	Default = AnyMatch
 }
 
 public static class ExceptionHelpers
@@ -48,7 +48,7 @@ public static class ExceptionHelpers
 		where T : Exception
 	{
 		if (exc == null)
-			throw new NullReferenceException("Exception is null");
+			throw new ArgumentNullException(nameof(exc));
 
 		// check if the exception has the desired type
 		if (exc is T result)
@@ -69,7 +69,7 @@ public static class ExceptionHelpers
 		where T : Exception
 	{
 		if (exc == null)
-			throw new NullReferenceException("AggregateException is null");
+			throw new ArgumentNullException(nameof(exc));
 
 		// check if the AggregateException itself has the desired type
 		if (exc is T thisResult)
@@ -85,11 +85,33 @@ public static class ExceptionHelpers
 		if (result != null)
 			return result;
 
-		// lookup for deeper level exceptions in all inner exceptions
-		foreach (Exception innerExc in innerExceptions)
+		// lookup for deeper level exceptions honoring the lookup mode
+		// (recursing into all inner exceptions unconditionally would violate
+		// the TheOnlyOne / First / Last mode guarantees)
+		switch (elm)
 		{
-			result = As<T>(innerExc, elm);
-			if (result != null)
+			case ExceptionLookupMode.AnyMatch:
+				foreach (Exception innerExc in innerExceptions)
+				{
+					result = As<T>(innerExc, elm);
+					if (result != null)
+						break;
+				}
+				break;
+
+			case ExceptionLookupMode.TheOnlyOne:
+				if (innerExceptions.Count == 1)
+					result = As<T>(innerExceptions[0], elm);
+				break;
+
+			case ExceptionLookupMode.First:
+			case ExceptionLookupMode.FirstIfAllSameType:
+				result = As<T>(innerExceptions[0], elm);
+				break;
+
+			case ExceptionLookupMode.Last:
+			case ExceptionLookupMode.LastIfAllSameType:
+				result = As<T>(innerExceptions[^1], elm);
 				break;
 		}
 

@@ -30,7 +30,7 @@ public interface ISegmentedStringDictionary : IDictionary<String, String>, IRead
 	static void ValidateSegmentedDictionaryKey(String segmentedDictionaryKey)
 	{
 		if (!DecomposeDictionaryKey(segmentedDictionaryKey, out String key, out String segmentKey))
-			throw new ArgumentException("Invalid directory key format");
+			throw new ArgumentException("Invalid dictionary key format");
 
 		ValidateSegmentedDictionaryKey(key, segmentKey);
 	}

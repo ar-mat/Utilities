@@ -23,12 +23,26 @@ public abstract class MultiDictionaryIndex<TIndexType, T> : MultiIndexBase<TInde
 
 	protected IDictionary<TIndexType, IList<Int32>> _indexMap;
 
+	// cached key / value views; they wrap the current _indexMap instance
+	// and must be reset whenever _indexMap is replaced
+	private MultiKeyCollection? _keysCollection;
+	private MultiValueCollection? _valuesCollection;
+
 	#endregion // Properties
 
 	#region IIndex implementation
 
 	protected abstract IDictionary<TIndexType, IList<Int32>> CreateIndexMap();
 	protected abstract void EnsureIndexMapCapacity(IDictionary<TIndexType, IList<Int32>> map, Int32 capacity);
+
+	protected override void OnInitialized()
+	{
+		base.OnInitialized();
+
+		// drop views cached before initialization - they wrap the placeholder data accessor
+		_keysCollection = null;
+		_valuesCollection = null;
+	}
 
 	private static IList<Int32> CreateValueList(ICollection<Int32>? other = null)
 	{
@@ -87,16 +101,20 @@ public abstract class MultiDictionaryIndex<TIndexType, T> : MultiIndexBase<TInde
 		}
 
 		_indexMap = newIndex;
+
+		// the cached key / value views wrap the replaced map instance - reset them
+		_keysCollection = null;
+		_valuesCollection = null;
 	}
 
 	public override ICollection<TIndexType> Keys
 	{
-		get => new MultiKeyCollection(Data, _indexMap, Owner.ValueComparer);
+		get => _keysCollection ??= new MultiKeyCollection(Data, _indexMap, Owner.ValueComparer);
 	}
 
 	public override ICollection<T> Values
 	{
-		get => new MultiValueCollection(Data, _indexMap, Owner.ValueComparer);
+		get => _valuesCollection ??= new MultiValueCollection(Data, _indexMap, Owner.ValueComparer);
 	}
 
 	public override IEnumerator<KeyValuePair<TIndexType, T>> GetEnumerator()
@@ -125,7 +143,7 @@ public abstract class MultiDictionaryIndex<TIndexType, T> : MultiIndexBase<TInde
 
 	#region IListChangeHandler implementation
 
-	public override Object? OnBeginInsertValue(Int32 index, T value)
+	protected override Object? OnBeginInsertValue(Int32 index, T value)
 	{
 		// add the value
 		TIndexType key = IndexReader.GetIndexValue(value);
@@ -141,12 +159,12 @@ public abstract class MultiDictionaryIndex<TIndexType, T> : MultiIndexBase<TInde
 		return key;
 	}
 
-	public override void OnCommitInsertValue(Int32 index, T value, Object? state)
+	protected override void OnCommitInsertValue(Int32 index, T value, Object? state)
 	{
 		// nothing to do
 	}
 
-	public override void OnRollbackInsertValue(Int32 index, T value, Object? state)
+	protected override void OnRollbackInsertValue(Int32 index, T value, Object? state)
 	{
 		// remove the added key
 		TIndexType key = (TIndexType)state!;
@@ -160,16 +178,17 @@ public abstract class MultiDictionaryIndex<TIndexType, T> : MultiIndexBase<TInde
 		}
 	}
 
-	public override Object? OnBeginRemoveValue(Int32 index, T prevValue)
+	protected override Object? OnBeginRemoveValue(Int32 index, T prevValue)
 	{
-		// nothing to do
-		return null;
+		// compute the key up front: the user-provided IndexReader may throw,
+		// and Begin is the only phase where a failure can safely cancel the operation
+		return IndexReader.GetIndexValue(prevValue);
 	}
 
-	public override void OnCommitRemoveValue(Int32 index, T prevValue, Object? state)
+	protected override void OnCommitRemoveValue(Int32 index, T prevValue, Object? state)
 	{
-		// remove it
-		TIndexType key = IndexReader.GetIndexValue(prevValue);
+		// remove it using the key captured at Begin (commit must never fail)
+		TIndexType key = (TIndexType)state!;
 
 		if (_indexMap.TryGetValue(key, out IList<Int32>? listIndexes))
 		{
@@ -185,12 +204,12 @@ public abstract class MultiDictionaryIndex<TIndexType, T> : MultiIndexBase<TInde
 		}
 	}
 
-	public override void OnRollbackRemoveValue(Int32 index, T prevValue, Object? state)
+	protected override void OnRollbackRemoveValue(Int32 index, T prevValue, Object? state)
 	{
 		// nothing to do
 	}
 
-	public override Object? OnBeginSetValue(Int32 index, T value, T prevValue)
+	protected override Object? OnBeginSetValue(Int32 index, T value, T prevValue)
 	{
 		// set the new key
 		TIndexType key = IndexReader.GetIndexValue(value);
@@ -224,12 +243,12 @@ public abstract class MultiDictionaryIndex<TIndexType, T> : MultiIndexBase<TInde
 		return new Tuple<TIndexType, TIndexType>(key, prevKey);
 	}
 
-	public override void OnCommitSetValue(Int32 index, T value, T prevValue, Object? state)
+	protected override void OnCommitSetValue(Int32 index, T value, T prevValue, Object? state)
 	{
 		// nothing to do
 	}
 
-	public override void OnRollbackSetValue(Int32 index, T value, T prevValue, Object? state)
+	protected override void OnRollbackSetValue(Int32 index, T value, T prevValue, Object? state)
 	{
 		Tuple<TIndexType, TIndexType> data = (Tuple<TIndexType, TIndexType>)state!;
 
@@ -263,18 +282,18 @@ public abstract class MultiDictionaryIndex<TIndexType, T> : MultiIndexBase<TInde
 		}
 	}
 
-	public override Object? OnBeginClear(Int32 count)
+	protected override Object? OnBeginClear(Int32 count)
 	{
 		// nothing to do
 		return null;
 	}
 
-	public override void OnCommitClear(Int32 count, Object? state)
+	protected override void OnCommitClear(Int32 count, Object? state)
 	{
 		_indexMap.Clear();
 	}
 
-	public override void OnRollbackClear(Int32 count, Object? state)
+	protected override void OnRollbackClear(Int32 count, Object? state)
 	{
 		// nothing to do
 	}
@@ -286,6 +305,12 @@ public class MultiHashIndex<TIndexType, T> : MultiDictionaryIndex<TIndexType, T>
 	where T : notnull
 	where TIndexType : notnull
 {
+	// parameterless constructor is required for Type based index creation via IndexedList.CreateIndex
+	public MultiHashIndex()
+		: this(null)
+	{
+	}
+
 	public MultiHashIndex(IEqualityComparer<TIndexType>? keyComparer)
 		: base(new Dictionary<TIndexType, IList<Int32>>(keyComparer), keyComparer)
 	{
@@ -312,6 +337,12 @@ public class MultiTreeIndex<TIndexType, T> : MultiDictionaryIndex<TIndexType, T>
 	where TIndexType : notnull
 {
 	private readonly IComparer<TIndexType> _comparer;
+
+	// parameterless constructor is required for Type based index creation via IndexedList.CreateIndex
+	public MultiTreeIndex()
+		: this(null)
+	{
+	}
 
 	public MultiTreeIndex(IComparer<TIndexType>? comparer = null)
 		: base(new SortedDictionary<TIndexType, IList<Int32>>(comparer ?? Comparer<TIndexType>.Default),

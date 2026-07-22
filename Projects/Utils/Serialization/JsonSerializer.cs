@@ -1,11 +1,13 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Text.Json;
-using System.Text.Json.Serialization;
-using System.Xml;
 
 namespace Armat.Serialization;
 
+// JSON serialization helper embedding assembly / type information for polymorphic round-trips.
+// SECURITY NOTE: deserialization instantiates the type named in the payload. Never deserialize
+// untrusted input with the default type locator - provide an allow-listing ITypeLocator
 public static class JsonSerializer
 {
 	public static String ToString<T>(T? data, JsonWriterOptions options = default)
@@ -32,7 +34,7 @@ public static class JsonSerializer
 	public static Boolean ToFile<T>(String filePath, T? data, JsonWriterOptions options = default)
 	{
 		// create / reset the file
-		using FileStream stream = File.OpenWrite(filePath);
+		using FileStream stream = File.Create(filePath);
 
 		// write into the file
 		return ToStream(stream, data, options);
@@ -40,7 +42,7 @@ public static class JsonSerializer
 	public static Boolean ToFile(String filePath, Object? data, Type objectType, JsonWriterOptions options = default)
 	{
 		// create / reset the file
-		using FileStream stream = File.OpenWrite(filePath);
+		using FileStream stream = File.Create(filePath);
 
 		// write into the file
 		return ToStream(stream, data, objectType, options);
@@ -61,7 +63,7 @@ public static class JsonSerializer
 		if (assemblyName == null || typeName == null)
 			throw new TypeAccessException();
 
-		// seriaize the data into JSON format
+		// serialize the data into JSON format
 		String jsonData = System.Text.Json.JsonSerializer.Serialize(data, objectType);
 
 		// create JSON writer stream
@@ -176,26 +178,27 @@ public static class JsonSerializer
 		return result;
 	}
 
+	// System.Text.Json caches serialization metadata per JsonSerializerOptions instance;
+	// creating a new instance per call would defeat that cache entirely
+	private static readonly ConcurrentDictionary<
+		(Boolean AllowTrailingCommas, JsonCommentHandling CommentHandling, Int32 MaxDepth),
+		JsonSerializerOptions> _serializerOptionsCache = new();
+
 	private static JsonSerializerOptions Convert(JsonDocumentOptions documentOptions)
 	{
-		JsonSerializerOptions serializerOptions = new ()
+		var key = (documentOptions.AllowTrailingCommas, documentOptions.CommentHandling, documentOptions.MaxDepth);
+
+		return _serializerOptionsCache.GetOrAdd(key, static k => new JsonSerializerOptions
 		{
-			// Assuming similar behavior for AllowTrailingCommas
-			AllowTrailingCommas = documentOptions.AllowTrailingCommas,
+			AllowTrailingCommas = k.AllowTrailingCommas,
 
-			// Assuming similar behavior for CommentHandling
-			ReadCommentHandling = documentOptions.CommentHandling switch
-			{
-				JsonCommentHandling.Disallow => JsonCommentHandling.Disallow,
-				JsonCommentHandling.Skip => JsonCommentHandling.Skip,
-				JsonCommentHandling.Allow => JsonCommentHandling.Allow,
-				_ => JsonCommentHandling.Disallow
-			},
+			// JsonSerializerOptions.ReadCommentHandling only accepts Skip or Disallow;
+			// Allow is a JsonDocument-only mode and must be downgraded to Skip
+			ReadCommentHandling = k.CommentHandling == JsonCommentHandling.Disallow
+				? JsonCommentHandling.Disallow
+				: JsonCommentHandling.Skip,
 
-			// Assuming similar behavior for MaxDepth
-			MaxDepth = documentOptions.MaxDepth
-		};
-
-		return serializerOptions;
+			MaxDepth = k.MaxDepth
+		});
 	}
 }

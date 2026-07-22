@@ -17,7 +17,7 @@ namespace Armat.Collections;
 
 // Represents a generic list of items
 // which can be indexed by different fields
-public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<IndexedList<T>>, IListChangeEmitter<T>, INotifyCollectionChanged
+public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<IndexedList<T>>, IListChangeEmitter<T>, INotifyCollectionChanged, IDisposable
 	where T : notnull
 {
 	#region Data members
@@ -141,7 +141,6 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 				IndexedListData dataWrapper = new(this);
 				IIndexBase<T> clonedIndex = ((IIndexCloner<T>)index).Clone(this, dataWrapper);
 
-				//dataWrapper.Index = clonedIndex;
 				_mapIndexesByName.Add(clonedIndex.Id, clonedIndex);
 
 				if (clonedIndex is IListChangeHandler<T> clonedChangeHandler)
@@ -159,11 +158,9 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 				{
 					_listChangeEmitter.RegisterChangeHandler(clonedChangeHandler, true);
 				}
-				else if (changeHandlerItem.Callback is ICloneable /*cloneableHandler*/)
+				else if (changeHandlerItem.Callback is ICloneable)
 				{
 					// Do not clone other change handlers!
-					//clonedChangeHandler = (IListChangeHandler<T>)((ICloneable)changeHandlerItem.Callback).Clone();
-					//_listChangeEmitter.RegisterChangeHandler(clonedChangeHandler, changeHandlerItem.InternalIndexing);
 				}
 				else
 				{
@@ -177,7 +174,10 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 		ValueComparer = valueComparer ?? EqualityComparer<T>.Default;
 	}
 
-	~IndexedList()
+	// disposes the read / write lock of a synchronized list
+	// (intentionally no finalizer: disposing a possibly-held lock from the
+	// finalizer thread could throw and would crash the process)
+	public void Dispose()
 	{
 		ReaderWriterLockSlim? rwLock = Interlocked.Exchange(ref _rwLock, null);
 		rwLock?.Dispose();
@@ -309,7 +309,7 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 
 	// non thread-safe method
 	// Try to avoid heavy reverse index operations because of notification
-	// TODO: It would be good to improve the ToExternalIndex performance
+	// TODO: It would be good to improve the ToExternalIndex performance (O(n) mask scan);
 	private Int32 ToExternalIndex(Int32 internalIndex)
 	{
 		Int32 result = internalIndex;
@@ -553,19 +553,24 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 	{
 		if (array == null)
 			throw new ArgumentNullException(nameof(array));
+		if (arrayIndex < 0)
+			throw new ArgumentOutOfRangeException(nameof(arrayIndex));
 
 		using var rLock = CreateReadLock();
+
+		// per the ICollection<T> contract insufficient space is an error, not a silent truncation
+		if (array.Length - arrayIndex < ExternalCount)
+			throw new ArgumentException("The number of elements is greater than the available space.", nameof(array));
 
 		if (_mask == null)
 		{
 			// case of a simple list
-			Int32 count = Math.Min(_list.Count, array.Length - arrayIndex);
-			_list.CopyTo(0, array, arrayIndex, count);
+			_list.CopyTo(0, array, arrayIndex, _list.Count);
 		}
 		else
 		{
 			// case of a masked list
-			Int32 externalCount = Math.Min(_mask.Count, array.Length - arrayIndex);
+			Int32 externalCount = _mask.Count;
 
 			for (Int32 externalIndex = 0; externalIndex < externalCount; externalIndex++)
 			{
@@ -579,13 +584,19 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 	{
 		if (array == null)
 			throw new ArgumentNullException(nameof(array));
+		if (arrayIndex < 0)
+			throw new ArgumentOutOfRangeException(nameof(arrayIndex));
 
 		using var rLock = CreateReadLock();
+
+		// per the ICollection contract insufficient space is an error, not a silent truncation
+		if (array.Length - arrayIndex < ExternalCount)
+			throw new ArgumentException("The number of elements is greater than the available space.", nameof(array));
 
 		if (_mask == null)
 		{
 			// case of a simple list
-			Int32 count = Math.Min(_list.Count, array.Length - arrayIndex);
+			Int32 count = _list.Count;
 
 			for (Int32 index = 0; index < count; index++)
 			{
@@ -595,7 +606,7 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 		else
 		{
 			// case of a masked list
-			Int32 externalCount = Math.Min(_mask.Count, array.Length - arrayIndex);
+			Int32 externalCount = _mask.Count;
 
 			for (Int32 externalIndex = 0; externalIndex < externalCount; externalIndex++)
 			{
@@ -1053,7 +1064,18 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 			_data = data;
 		}
 
-		public T Current => _index != -2 ? _data[_index] : throw new ObjectDisposedException("IndexedListEnumerator");
+		public T Current
+		{
+			get
+			{
+				if (_index == -2)
+					throw new ObjectDisposedException(nameof(IndexedListEnumerator));
+				if (_index < 0 || _index >= _data.Count)
+					throw new InvalidOperationException("Enumeration has either not started or has already finished");
+
+				return _data[_index];
+			}
+		}
 
 		Object? IEnumerator.Current => this.Current;
 
@@ -1081,6 +1103,11 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 
 	#region Events
 
+	// Notes on events:
+	// - the *ing events (Inserting, Removing, ...) may veto a pending change by throwing;
+	//   the exception propagates out of the mutating call and the list remains unchanged
+	// - in synchronized mode all events are raised while the internal write lock is held;
+	//   handlers must not block on other threads accessing this list - risk of deadlock
 	public event InsertHandler<T>? Inserting;
 	public event InsertHandler<T>? Inserted;
 
@@ -1105,6 +1132,8 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 
 	protected void RegisterChangeHandler(IListChangeHandler<T> changeHandler, Boolean useInternalIndexes)
 	{
+		using var wLock = CreateWriteLock();
+
 		_listChangeEmitter ??= new IndexedListChangeEmitter();
 
 		_listChangeEmitter.RegisterChangeHandler(changeHandler, useInternalIndexes);
@@ -1112,6 +1141,8 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 
 	public Boolean UnregisterChangeHandler(IListChangeHandler<T> changeHandler)
 	{
+		using var wLock = CreateWriteLock();
+
 		if (_listChangeEmitter == null)
 			return false;
 
@@ -1180,9 +1211,10 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 					result = item.Callback.OnBeginInsertValue(item.InternalIndexing ? indexInt : indexExt, value);
 				}
 			}
-			catch (Exception exc)
+			catch
 			{
 				// roll back the ones that have succeeded
+				// (a handler whose Begin failed must leave no partial state behind by itself)
 				if (chCount > 1)
 				{
 					for (index--; index >= 0; index--)
@@ -1192,18 +1224,9 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 						catch { }
 					}
 				}
-				// There's nothing to roll back if the only begin has failed
-				//else
-				//{
-				//	try { _listChangeHandlers[0].OnRollbackInsertValue(index, value, result); }
-				//	catch { }
-				//}
 
-				// ensure not to wrap the OperationCanceledException in another one
-				if (exc is OperationCanceledException)
-					throw;
-
-				throw new OperationCanceledException("Insertion of value has been canceled", exc);
+				// rethrow the original exception (e.g. ArgumentException for a duplicate index key)
+				throw;
 			}
 
 			return result;
@@ -1295,9 +1318,10 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 					result = item.Callback.OnBeginRemoveValue(item.InternalIndexing ? indexInt : indexExt, prevValue);
 				}
 			}
-			catch (Exception exc)
+			catch
 			{
 				// roll back the ones that have succeeded
+				// (a handler whose Begin failed must leave no partial state behind by itself)
 				if (chCount > 1)
 				{
 					for (index--; index >= 0; index--)
@@ -1307,18 +1331,9 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 						catch { }
 					}
 				}
-				// There's nothing to roll back if the only begin has failed
-				//else
-				//{
-				//	try { _listChangeHandlers[0].OnRollbackRemoveValue(index, prevValue, result); }
-				//	catch { }
-				//}
 
-				// ensure not to wrap the OperationCanceledException in another one
-				if (exc is OperationCanceledException)
-					throw;
-
-				throw new OperationCanceledException("Removal of value has been canceled", exc);
+				// rethrow the original exception
+				throw;
 			}
 
 			return result;
@@ -1410,9 +1425,10 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 					result = item.Callback.OnBeginSetValue(item.InternalIndexing ? indexInt : indexExt, value, prevValue);
 				}
 			}
-			catch (Exception exc)
+			catch
 			{
 				// roll back the ones that have succeeded
+				// (a handler whose Begin failed must leave no partial state behind by itself)
 				if (chCount > 1)
 				{
 					for (index--; index >= 0; index--)
@@ -1422,18 +1438,9 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 						catch { }
 					}
 				}
-				// There's nothing to roll back if the only begin has failed
-				//else
-				//{
-				//	try { _listChangeHandlers[0].OnRollbackSetValue(index, value, prevValue, result); }
-				//	catch { }
-				//}
 
-				// ensure not to wrap the OperationCanceledException in another one
-				if (exc is OperationCanceledException)
-					throw;
-
-				throw new OperationCanceledException("Setting of value has been canceled", exc);
+				// rethrow the original exception (e.g. ArgumentException for a duplicate index key)
+				throw;
 			}
 
 			return result;
@@ -1525,9 +1532,10 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 					result = item.Callback.OnBeginMoveValue(item.InternalIndexing ? indexIntNew : indexExtNew, item.InternalIndexing ? indexIntPrev : indexExtPrev, value);
 				}
 			}
-			catch (Exception exc)
+			catch
 			{
 				// roll back the ones that have succeeded
+				// (a handler whose Begin failed must leave no partial state behind by itself)
 				if (chCount > 1)
 				{
 					for (index--; index >= 0; index--)
@@ -1537,18 +1545,9 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 						catch { }
 					}
 				}
-				// There's nothing to roll back if the only begin has failed
-				//else
-				//{
-				//	try { _listChangeHandlers[0].OnRollbackSetValue(index, value, prevValue, result); }
-				//	catch { }
-				//}
 
-				// ensure not to wrap the OperationCanceledException in another one
-				if (exc is OperationCanceledException)
-					throw;
-
-				throw new OperationCanceledException("Setting of value has been canceled", exc);
+				// rethrow the original exception
+				throw;
 			}
 
 			return result;
@@ -1636,9 +1635,10 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 					result = _listChangeHandlers[0].Callback.OnBeginClear(count);
 				}
 			}
-			catch (Exception exc)
+			catch
 			{
 				// roll back the ones that have succeeded
+				// (a handler whose Begin failed must leave no partial state behind by itself)
 				if (chCount > 1)
 				{
 					for (index--; index >= 0; index--)
@@ -1647,18 +1647,9 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 						catch { }
 					}
 				}
-				// There's nothing to roll back if the only begin has failed
-				//else
-				//{
-				//	try { _listChangeHandlers[0].OnRollbackClear(result); }
-				//	catch { }
-				//}
 
-				// ensure not to wrap the OperationCanceledException in another one
-				if (exc is OperationCanceledException)
-					throw;
-
-				throw new OperationCanceledException("Clearing of list has been canceled", exc);
+				// rethrow the original exception
+				throw;
 			}
 
 			return result;
@@ -1805,11 +1796,12 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 		IIndexReader<TIndexType, T> indexReader)
 		where TIndexType : notnull
 	{
-		if (indexClassType.FullName == null || !typeof(IIndex<TIndexType, T>).IsAssignableFrom(indexClassType))
+		if (!typeof(IIndex<TIndexType, T>).IsAssignableFrom(indexClassType))
 			throw new ArgumentException($"Type {indexClassType} must implement \"IIndex<TIndexType, T>\" interface", nameof(indexClassType));
 
 		// create the index instance
-		Object objInstance = indexClassType.Assembly.CreateInstance(indexClassType.FullName)
+		// (Activator handles constructed generic types; a parameterless constructor is required)
+		Object objInstance = Activator.CreateInstance(indexClassType)
 			?? throw new ArgumentException($"Creation of an index of type {indexClassType} failed");
 
 		IIndex<TIndexType, T> index = (IIndex<TIndexType, T>)objInstance;
@@ -1834,6 +1826,9 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 
 	protected virtual void RegisterIndex(IIndexBase<T> index)
 	{
+		// registration reads the whole list to populate the index - block concurrent writers
+		using var wLock = CreateWriteLock();
+
 		if (index.Id.Length == 0)
 			throw new ArgumentException("Invalid index id");
 		if (index.Count != 0)
@@ -1890,6 +1885,8 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 
 	protected virtual Boolean UnregisterIndex(String id)
 	{
+		using var wLock = CreateWriteLock();
+
 		if (_mapIndexesByName == null)
 			return false;
 
@@ -1915,11 +1912,19 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 
 	public IReadOnlyCollection<IIndexBase<T>> Indexes
 	{
-		get { return _mapIndexesByName != null ? _mapIndexesByName.Values : Array.Empty<IIndexBase<T>>(); }
+		get
+		{
+			using var rLock = CreateReadLock();
+
+			// return a snapshot - the live Values collection is not safe to hand out
+			return _mapIndexesByName != null ? _mapIndexesByName.Values.ToArray() : Array.Empty<IIndexBase<T>>();
+		}
 	}
 
 	public IIndexBase<T>? GetIndex(String name)
 	{
+		using var rLock = CreateReadLock();
+
 		if (_mapIndexesByName == null)
 			return null;
 
@@ -1932,8 +1937,10 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 		return GetIndex(name) as IIndex<TIndexType, T>;
 	}
 
-	public void ReIndex<TIndexType>()
+	public void ReIndex()
 	{
+		using var wLock = CreateWriteLock();
+
 		if (_mapIndexesByName == null)
 			return;
 
@@ -1942,8 +1949,10 @@ public class IndexedList<T> : IList<T>, IReadOnlyList<T>, IList, IEquatable<Inde
 			index.ReIndex();
 	}
 
-	public void ReIndex<TIndexType>(String id)
+	public void ReIndex(String id)
 	{
+		using var wLock = CreateWriteLock();
+
 		if (_mapIndexesByName == null)
 			throw new KeyNotFoundException();
 

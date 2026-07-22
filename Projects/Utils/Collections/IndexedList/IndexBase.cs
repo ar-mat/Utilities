@@ -2,10 +2,6 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Net.Http.Headers;
-using System.Reflection;
-using System.Runtime.CompilerServices;
-using System.Threading;
 
 namespace Armat.Collections;
 
@@ -160,7 +156,21 @@ public abstract class IndexBase<TIndexType, T> :
 		return IndexOfItem(new KeyValuePair<TIndexType, T>(key, value));
 	}
 
-	public virtual Int32 IndexOfItem(KeyValuePair<TIndexType, T> item)
+	public Int32 IndexOfItem(KeyValuePair<TIndexType, T> item)
+	{
+		using var rLock = Owner.CreateReadLock();
+
+		Int32 internalIndex = IndexOfItemInternal(item);
+		if (internalIndex == -1)
+			return -1;
+
+		// this is a public method, it must return an external index
+		return Data.ToExternalIndex(internalIndex);
+	}
+
+	// finds the internal (storage) index of the given item
+	// internal indexes are only valid for the Data accessor and must not be exposed publicly
+	protected virtual Int32 IndexOfItemInternal(KeyValuePair<TIndexType, T> item)
 	{
 		// find the index by key
 		Int32 index = IndexOfKey(item.Key);
@@ -200,8 +210,8 @@ public abstract class IndexBase<TIndexType, T> :
 
 	public void ReIndex()
 	{
-		// copy data into the new instance
-		using var rLock = Owner.CreateReadLock();
+		// recomputing mutates the index map - take the write lock
+		using var wLock = Owner.CreateWriteLock();
 
 		RecomputeIndex();
 	}
@@ -297,16 +307,15 @@ public abstract class IndexBase<TIndexType, T> :
 
 		public void CopyTo(KeyValuePair<TIndexType, T>[] array, Int32 arrayIndex)
 		{
-			if (array == null || array.Length <= arrayIndex)
-				return;
+			if (array == null)
+				throw new ArgumentNullException(nameof(array));
+			if (arrayIndex < 0)
+				throw new ArgumentOutOfRangeException(nameof(arrayIndex));
+			if (array.Length - arrayIndex < Count)
+				throw new ArgumentException("The number of elements is greater than the available space.", nameof(array));
 
 			foreach (KeyValuePair<TIndexType, Int32> pair in _indexMap)
-			{
 				array[arrayIndex++] = new KeyValuePair<TIndexType, T>(pair.Key, _data[pair.Value]);
-
-				if (arrayIndex >= array.Length)
-					return;
-			}
 		}
 
 		IEnumerator<KeyValuePair<TIndexType, T>> IEnumerable<KeyValuePair<TIndexType, T>>.GetEnumerator()
@@ -456,16 +465,15 @@ public abstract class IndexBase<TIndexType, T> :
 
 		public void CopyTo(T[] array, Int32 arrayIndex)
 		{
-			if (array == null || array.Length <= arrayIndex)
-				return;
+			if (array == null)
+				throw new ArgumentNullException(nameof(array));
+			if (arrayIndex < 0)
+				throw new ArgumentOutOfRangeException(nameof(arrayIndex));
+			if (array.Length - arrayIndex < Count)
+				throw new ArgumentException("The number of elements is greater than the available space.", nameof(array));
 
 			foreach (KeyValuePair<TIndexType, Int32> pair in _indexMap)
-			{
 				array[arrayIndex++] = _data[pair.Value];
-
-				if (arrayIndex >= array.Length)
-					return;
-			}
 		}
 
 		IEnumerator<T> IEnumerable<T>.GetEnumerator()
@@ -615,15 +623,20 @@ public abstract class IndexBase<TIndexType, T> :
 	{
 		using var rLock = Owner.CreateReadLock();
 
-		return IndexOfItem(item) != -1;
+		return IndexOfItemInternal(item) != -1;
 	}
 
 	public void CopyTo(KeyValuePair<TIndexType, T>[] array, Int32 arrayIndex)
 	{
-		if (array == null || array.Length <= arrayIndex)
-			return;
+		if (array == null)
+			throw new ArgumentNullException(nameof(array));
+		if (arrayIndex < 0)
+			throw new ArgumentOutOfRangeException(nameof(arrayIndex));
 
 		using var rLock = Owner.CreateReadLock();
+
+		if (array.Length - arrayIndex < Count)
+			throw new ArgumentException("The number of elements is greater than the available space.", nameof(array));
 
 		CopyToArray(array, arrayIndex);
 	}
@@ -632,11 +645,12 @@ public abstract class IndexBase<TIndexType, T> :
 	{
 		using var urLock = Owner.CreateUpgradableReadLock();
 
-		Int32 index = IndexOfItem(item);
+		Int32 index = IndexOfItemInternal(item);
 		if (index == -1)
 			return false;
 
-		Owner.RemoveAt(index);
+		// index is an internal one; Data.RemoveAt converts it to the external index itself
+		Data.RemoveAt(index);
 		return true;
 	}
 
@@ -649,74 +663,122 @@ public abstract class IndexBase<TIndexType, T> :
 
 	#region IListChangeHandler implementation
 
-	public virtual Object? OnBeginInsertValue(Int32 index, T value)
+	Object? IListChangeHandler<T>.OnBeginInsertValue(Int32 index, T value)
+	{
+		return OnBeginInsertValue(index, value);
+	}
+	protected virtual Object? OnBeginInsertValue(Int32 index, T value)
 	{
 		return null;
 	}
 
-	public virtual void OnCommitInsertValue(Int32 index, T value, Object? state)
+	void IListChangeHandler<T>.OnCommitInsertValue(Int32 index, T value, Object? state)
+	{
+		OnCommitInsertValue(index, value, state);
+	}
+	protected virtual void OnCommitInsertValue(Int32 index, T value, Object? state)
 	{
 	}
 
-	public virtual void OnRollbackInsertValue(Int32 index, T value, Object? state)
+	void IListChangeHandler<T>.OnRollbackInsertValue(Int32 index, T value, Object? state)
+	{
+		OnRollbackInsertValue(index, value, state);
+	}
+	protected virtual void OnRollbackInsertValue(Int32 index, T value, Object? state)
 	{
 	}
 
-	public virtual Object? OnBeginRemoveValue(Int32 index, T prevValue)
+	Object? IListChangeHandler<T>.OnBeginRemoveValue(Int32 index, T prevValue)
+	{
+		return OnBeginRemoveValue(index, prevValue);
+	}
+	protected virtual Object? OnBeginRemoveValue(Int32 index, T prevValue)
 	{
 		return null;
 	}
 
-	public virtual void OnCommitRemoveValue(Int32 index, T prevValue, Object? state)
+	void IListChangeHandler<T>.OnCommitRemoveValue(Int32 index, T prevValue, Object? state)
+	{
+		OnCommitRemoveValue(index, prevValue, state);
+	}
+	protected virtual void OnCommitRemoveValue(Int32 index, T prevValue, Object? state)
 	{
 	}
 
-	public virtual void OnRollbackRemoveValue(Int32 index, T prevValue, Object? state)
+	void IListChangeHandler<T>.OnRollbackRemoveValue(Int32 index, T prevValue, Object? state)
+	{
+		OnRollbackRemoveValue(index, prevValue, state);
+	}
+	protected virtual void OnRollbackRemoveValue(Int32 index, T prevValue, Object? state)
 	{
 	}
 
-	public virtual Object? OnBeginSetValue(Int32 index, T value, T prevValue)
+	Object? IListChangeHandler<T>.OnBeginSetValue(Int32 index, T value, T prevValue)
+	{
+		return OnBeginSetValue(index, value, prevValue);
+	}
+	protected virtual Object? OnBeginSetValue(Int32 index, T value, T prevValue)
 	{
 		return null;
 	}
 
-	public virtual void OnCommitSetValue(Int32 index, T value, T prevValue, Object? state)
+	void IListChangeHandler<T>.OnCommitSetValue(Int32 index, T value, T prevValue, Object? state)
+	{
+		OnCommitSetValue(index, value, prevValue, state);
+	}
+	protected virtual void OnCommitSetValue(Int32 index, T value, T prevValue, Object? state)
 	{
 	}
 
-	public virtual void OnRollbackSetValue(Int32 index, T value, T prevValue, Object? state)
+	void IListChangeHandler<T>.OnRollbackSetValue(Int32 index, T value, T prevValue, Object? state)
+	{
+		OnRollbackSetValue(index, value, prevValue, state);
+	}
+	protected virtual void OnRollbackSetValue(Int32 index, T value, T prevValue, Object? state)
 	{
 	}
 
 	/* *Move* methods are not marked as virtual because moving items within IndexedList 
 	 * does reshuffling of external indexes but not internal ones.
 	 * Indexes always work based on internal indexes, and therefore Moves are irrelevant in this context */
-	public /*virtual*/ Object? OnBeginMoveValue(Int32 indexNew, Int32 IndexPrev, T value)
+	Object? IListChangeHandler<T>.OnBeginMoveValue(Int32 indexNew, Int32 IndexPrev, T value)
 	{
 		return null;
 	}
 
-	public /*virtual*/ void OnCommitMoveValue(Int32 indexNew, Int32 IndexPrev, T value, Object? state)
+	void IListChangeHandler<T>.OnCommitMoveValue(Int32 indexNew, Int32 IndexPrev, T value, Object? state)
 	{
 	}
 
-	public /*virtual*/ void OnRollbackMoveValue(Int32 indexNew, Int32 IndexPrev, T value, Object? state)
+	void IListChangeHandler<T>.OnRollbackMoveValue(Int32 indexNew, Int32 IndexPrev, T value, Object? state)
 	{
 	}
 	/* *Move* methods are not marked as virtual because moving items within IndexedList 
 	 * does reshuffling of external indexes but not internal ones.
 	 * Indexes always work based on internal indexes, and therefore Moves are irrelevant in this context */
 
-	public virtual Object? OnBeginClear(Int32 count)
+	Object? IListChangeHandler<T>.OnBeginClear(Int32 count)
+	{
+		return OnBeginClear(count);
+	}
+	protected virtual Object? OnBeginClear(Int32 count)
 	{
 		return null;
 	}
 
-	public virtual void OnCommitClear(Int32 count, Object? state)
+	void IListChangeHandler<T>.OnCommitClear(Int32 count, Object? state)
+	{
+		OnCommitClear(count, state);
+	}
+	protected virtual void OnCommitClear(Int32 count, Object? state)
 	{
 	}
 
-	public virtual void OnRollbackClear(Int32 count, Object? state)
+	void IListChangeHandler<T>.OnRollbackClear(Int32 count, Object? state)
+	{
+		OnRollbackClear(count, state);
+	}
+	protected virtual void OnRollbackClear(Int32 count, Object? state)
 	{
 	}
 

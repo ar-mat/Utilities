@@ -34,7 +34,9 @@ public abstract class MultiIndexBase<TIndexType, T> : IndexBase<TIndexType, T>, 
 
 	protected abstract IReadOnlyCollection<Int32> IndexesOfKey(TIndexType key);
 
-	public override Int32 IndexOfItem(KeyValuePair<TIndexType, T> item)
+	// finds the internal (storage) index of the given item
+	// internal indexes are only valid for the Data accessor and must not be exposed publicly
+	protected override Int32 IndexOfItemInternal(KeyValuePair<TIndexType, T> item)
 	{
 		// find the index by key
 		IReadOnlyCollection<Int32> listIndexes = IndexesOfKey(item.Key);
@@ -55,6 +57,8 @@ public abstract class MultiIndexBase<TIndexType, T> : IndexBase<TIndexType, T>, 
 	{
 		TIndexType key = IndexReader.GetIndexValue(value);
 
+		using var rLock = Owner.CreateReadLock();
+
 		return IndexesOfItem(new KeyValuePair<TIndexType, T>(key, value));
 	}
 
@@ -71,7 +75,12 @@ public abstract class MultiIndexBase<TIndexType, T> : IndexBase<TIndexType, T>, 
 		foreach (Int32 index in listIndexes)
 		{
 			if (Owner.ValueComparer.Equals(Data[index], item.Value))
-				result.Add(index);	// item is found
+			{
+				// this method feeds the public API, it must return external indexes
+				Int32 externalIndex = Data.ToExternalIndex(index);
+				if (externalIndex != -1)
+					result.Add(externalIndex);
+			}
 		}
 
 		return result;
@@ -79,12 +88,16 @@ public abstract class MultiIndexBase<TIndexType, T> : IndexBase<TIndexType, T>, 
 
 	public virtual Int32 GetCountByKey(TIndexType key)
 	{
+		using var rLock = Owner.CreateReadLock();
+
 		IReadOnlyCollection<Int32> arrIndexes = IndexesOfKey(key);
 		return arrIndexes.Count;
 	}
 
 	public virtual IReadOnlyCollection<Int32> IndexesOf(TIndexType key)
 	{
+		using var rLock = Owner.CreateReadLock();
+
 		IReadOnlyCollection<Int32> arrIndexes = IndexesOfKey(key);
 		if (arrIndexes == null)
 			return Array.Empty<Int32>();
@@ -103,6 +116,8 @@ public abstract class MultiIndexBase<TIndexType, T> : IndexBase<TIndexType, T>, 
 
 	public virtual IReadOnlyCollection<T> GetValuesByKey(TIndexType key)
 	{
+		using var rLock = Owner.CreateReadLock();
+
 		IReadOnlyCollection<Int32> arrIndexes = IndexesOfKey(key);
 		if (arrIndexes == null)
 			return Array.Empty<T>();
@@ -188,18 +203,17 @@ public abstract class MultiIndexBase<TIndexType, T> : IndexBase<TIndexType, T>, 
 
 		public void CopyTo(KeyValuePair<TIndexType, T>[] array, Int32 arrayIndex)
 		{
-			if (array == null || array.Length <= arrayIndex)
-				return;
+			if (array == null)
+				throw new ArgumentNullException(nameof(array));
+			if (arrayIndex < 0)
+				throw new ArgumentOutOfRangeException(nameof(arrayIndex));
+			if (array.Length - arrayIndex < Count)
+				throw new ArgumentException("The number of elements is greater than the available space.", nameof(array));
 
 			foreach (KeyValuePair<TIndexType, IList<Int32>> pair in _indexMap)
 			{
 				for (Int32 index = 0; index < pair.Value.Count; index++)
-				{
 					array[arrayIndex++] = new KeyValuePair<TIndexType, T>(pair.Key, _data[pair.Value[index]]);
-
-					if (arrayIndex >= array.Length)
-						return;
-				}
 			}
 		}
 
@@ -313,18 +327,17 @@ public abstract class MultiIndexBase<TIndexType, T> : IndexBase<TIndexType, T>, 
 
 		public void CopyTo(TIndexType[] array, Int32 arrayIndex)
 		{
-			if (array == null || array.Length <= arrayIndex)
-				return;
+			if (array == null)
+				throw new ArgumentNullException(nameof(array));
+			if (arrayIndex < 0)
+				throw new ArgumentOutOfRangeException(nameof(arrayIndex));
+			if (array.Length - arrayIndex < Count)
+				throw new ArgumentException("The number of elements is greater than the available space.", nameof(array));
 
 			foreach (KeyValuePair<TIndexType, IList<Int32>> pair in _indexMap)
 			{
 				for (Int32 index = 0; index < pair.Value.Count; index++)
-				{
 					array[arrayIndex++] = pair.Key;
-
-					if (arrayIndex >= array.Length)
-						return;
-				}
 			}
 		}
 
@@ -395,18 +408,17 @@ public abstract class MultiIndexBase<TIndexType, T> : IndexBase<TIndexType, T>, 
 
 		public void CopyTo(T[] array, Int32 arrayIndex)
 		{
-			if (array == null || array.Length <= arrayIndex)
-				return;
+			if (array == null)
+				throw new ArgumentNullException(nameof(array));
+			if (arrayIndex < 0)
+				throw new ArgumentOutOfRangeException(nameof(arrayIndex));
+			if (array.Length - arrayIndex < Count)
+				throw new ArgumentException("The number of elements is greater than the available space.", nameof(array));
 
 			foreach (KeyValuePair<TIndexType, IList<Int32>> pair in _indexMap)
 			{
 				for (Int32 index = 0; index < pair.Value.Count; index++)
-				{
 					array[arrayIndex++] = _data[pair.Value[index]];
-
-					if (arrayIndex >= array.Length)
-						return;
-				}
 			}
 		}
 
