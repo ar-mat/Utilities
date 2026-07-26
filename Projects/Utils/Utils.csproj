@@ -60,12 +60,6 @@
 			<Pack>True</Pack>
 			<PackagePath>\</PackagePath>
 		</None>
-		<!-- release notes live at the repository root and are shipped inside the package -->
-		<None Include="..\..\ReleaseNotes.md">
-			<Pack>True</Pack>
-			<PackagePath>\</PackagePath>
-			<Link>ReleaseNotes.md</Link>
-		</None>
 	</ItemGroup>
 
 </Project>
