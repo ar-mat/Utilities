@@ -159,7 +159,7 @@ This project is licensed under the MIT License - see the [LICENSE.txt](LICENSE.t
 
 Per-release details are maintained in [ReleaseNotes.md](ReleaseNotes.md).
 
-### Version 3.0.0
+### Version 2.1.0
 Bug-fix release with breaking API cleanups; retargeted to .NET 10.0 (from .NET 8.0):
 - Retargeted to .NET 10.0 — projects on .NET 8/9 can no longer reference this package version
 - Fixed inverted `Counter` inequality operator and truncating `Int32` comparisons
